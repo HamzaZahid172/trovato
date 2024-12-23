@@ -38,3 +38,11 @@ sdk/python/dist/
 sdk/python/ragflow_sdk.egg-info/
 huggingface.co/
 nltk_data/
+
+# Exclude custom
+.build_env/
+chrome-linux*
+chromedriver*
+cl100k*
+libssl*
+tika-server*
