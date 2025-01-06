@@ -59,18 +59,13 @@ class Docx(DocxParser):
         for p in self.doc.paragraphs:
             if pn > to_page:
                 break
-            
             try:
                 question_level, p_text = docx_question_level(p, bull)
                 if not isinstance(question_level, int):
-                    question_level = 0 # Default to 0 if parsing fails
+                    question_level = 0  # Default to 0 if parsing fails
             except Exception as e:
                 question_level = 0  # Default level on error
                 logging.warning(f"Failed to parse question level: {e}")
-            
-            if not p_text.strip("\n"):
-                continue
-            lines.append((question_level, p_text))
 
             for run in p.runs:
                 if 'lastRenderedPageBreak' in run._element.xml:
