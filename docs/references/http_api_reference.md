@@ -5,7 +5,7 @@ slug: /http_api_reference
 
 # HTTP API Reference
 
-A complete reference for RAGFlow's RESTful API. Before proceeding, please ensure you [have your RAGFlow API key ready for authentication](https://ragflow.io/docs/dev/acquire_ragflow_api_key).
+A complete reference for Trovato's RESTful API. Before proceeding, please ensure you [have your trovato API key ready for authentication](https://trovato.ai/docs/dev/acquire_trovato_api_key).
 
 ---
 
@@ -586,7 +586,7 @@ Downloads a document from a specified dataset.
 curl --request GET \
      --url http://{address}/api/v1/datasets/{dataset_id}/documents/{document_id} \
      --header 'Authorization: Bearer <YOUR_API_KEY>' \
-     --output ./ragflow.txt
+     --output ./trovato.txt
 ```
 
 ##### Request parameters
@@ -933,7 +933,7 @@ Success:
     "code": 0,
     "data": {
         "chunk": {
-            "content": "ragflow content",
+            "content": "trovato content",
             "create_time": "2024-10-16 08:05:04",
             "create_timestamp": 1729065904.581025,
             "dataset_id": [
@@ -1151,7 +1151,7 @@ curl --request PUT \
      --header 'Authorization: Bearer <YOUR_API_KEY>' \
      --data '
      {   
-          "content": "ragflow123",  
+          "content": "trovato123",  
           "important_keywords": []  
      }'
 ```
@@ -1229,7 +1229,7 @@ curl --request POST \
      --header 'Authorization: Bearer <YOUR_API_KEY>' \
      --data '
      {
-          "question": "What is advantage of ragflow?",
+          "question": "What is advantage of trovato?",
           "dataset_ids": ["b2a62730759d11ef987d0242ac120004"],
           "document_ids": ["77df9ef4759a11ef8bdd0242ac120004"]
      }'
@@ -1274,11 +1274,11 @@ Success:
     "data": {
         "chunks": [
             {
-                "content": "ragflow content",
-                "content_ltks": "ragflow content",
+                "content": "trovato content",
+                "content_ltks": "trovato content",
                 "document_id": "5c5999ec7be811ef9cab0242ac120005",
                 "document_keyword": "1.txt",
-                "highlight": "<em>ragflow</em> content",
+                "highlight": "<em>trovato</em> content",
                 "id": "d78435d142bd5cf6704da62c778795c5",
                 "image_id": "",
                 "important_keywords": [
@@ -1377,7 +1377,7 @@ curl --request POST \
     The maximum length of the model's output, measured in the number of tokens (words or pieces of words). Defaults to `512`. If disabled, you lift the maximum token limit, allowing the model to determine the number of tokens in its responses.  
 - `"prompt"`: (*Body parameter*), `object`  
   Instructions for the LLM to follow. If it is not explicitly set, a JSON object with the following values will be generated as the default. A `prompt` JSON object contains the following attributes:  
-  - `"similarity_threshold"`: `float` RAGFlow employs either a combination of weighted keyword similarity and weighted vector cosine similarity, or a combination of weighted keyword similarity and weighted reranking score during retrieval. This argument sets the threshold for similarities between the user query and chunks. If a similarity score falls below this threshold, the corresponding chunk will be excluded from the results. The default value is `0.2`.
+  - `"similarity_threshold"`: `float` trovato employs either a combination of weighted keyword similarity and weighted vector cosine similarity, or a combination of weighted keyword similarity and weighted reranking score during retrieval. This argument sets the threshold for similarities between the user query and chunks. If a similarity score falls below this threshold, the corresponding chunk will be excluded from the results. The default value is `0.2`.
   - `"keywords_similarity_weight"`: `float` This argument sets the weight of keyword similarity in the hybrid similarity score with vector cosine similarity or reranking model similarity. By adjusting this weight, you can control the influence of keyword similarity in relation to other similarity measures. The default value is `0.7`.
   - `"top_n"`: `int` This argument specifies the number of top chunks with similarity scores above the `similarity_threshold` that are fed to the LLM. The LLM will *only* access these 'top N' chunks.  The default value is `8`.
   - `"variables"`: `object[]` This argument lists the variables to use in the 'System' field of **Chat Configurations**. Note that:  
@@ -1512,7 +1512,7 @@ curl --request PUT \
     The maximum length of the model's output, measured in the number of tokens (words or pieces of words). Defaults to `512`. If disabled, you lift the maximum token limit, allowing the model to determine the number of tokens in its responses.  
 - `"prompt"`: (*Body parameter*), `object`  
   Instructions for the LLM to follow.  A `prompt` object contains the following attributes:  
-  - `"similarity_threshold"`: `float` RAGFlow employs either a combination of weighted keyword similarity and weighted vector cosine similarity, or a combination of weighted keyword similarity and weighted rerank score during retrieval. This argument sets the threshold for similarities between the user query and chunks. If a similarity score falls below this threshold, the corresponding chunk will be excluded from the results. The default value is `0.2`.
+  - `"similarity_threshold"`: `float` trovato employs either a combination of weighted keyword similarity and weighted vector cosine similarity, or a combination of weighted keyword similarity and weighted rerank score during retrieval. This argument sets the threshold for similarities between the user query and chunks. If a similarity score falls below this threshold, the corresponding chunk will be excluded from the results. The default value is `0.2`.
   - `"keywords_similarity_weight"`: `float` This argument sets the weight of keyword similarity in the hybrid similarity score with vector cosine similarity or reranking model similarity. By adjusting this weight, you can control the influence of keyword similarity in relation to other similarity measures. The default value is `0.7`.
   - `"top_n"`: `int` This argument specifies the number of top chunks with similarity scores above the `similarity_threshold` that are fed to the LLM. The LLM will *only* access these 'top N' chunks.  The default value is `8`.
   - `"variables"`: `object[]` This argument lists the variables to use in the 'System' field of **Chat Configurations**. Note that:  

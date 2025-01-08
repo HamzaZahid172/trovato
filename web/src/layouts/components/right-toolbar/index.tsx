@@ -54,6 +54,7 @@ const RightToolBar = () => {
   return (
     <div className={styled.toolbarWrapper}>
       <Space wrap size={16}>
+        {/* 
         <Dropdown menu={{ items, onClick: handleItemClick }} placement="bottom">
           <Space className={styled.language}>
             <b>{t(camelCase(language))}</b>
@@ -63,6 +64,7 @@ const RightToolBar = () => {
         <Circle>
           <GithubOutlined onClick={handleGithubCLick} />
         </Circle>
+        */}
         <Circle>
           {theme === 'dark' ? (
             <MoonIcon onClick={onMoonClick} size={20} />

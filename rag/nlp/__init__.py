@@ -70,13 +70,7 @@ def find_codec(blob):
     return "utf-8"
 
 QUESTION_PATTERN = [
-    r"第([零一二三四五六七八九十百0-9]+)问",
-    r"第([零一二三四五六七八九十百0-9]+)条",
-    r"[\(（]([零一二三四五六七八九十百]+)[\)）]",
-    r"第([0-9]+)问",
-    r"第([0-9]+)条",
     r"([0-9]{1,2})[\. 、]",
-    r"([零一二三四五六七八九十百]+)[ 、]",
     r"[\(（]([0-9]{1,2})[\)）]",
     r"QUESTION (ONE|TWO|THREE|FOUR|FIVE|SIX|SEVEN|EIGHT|NINE|TEN)",
     r"QUESTION (I+V?|VI*|XI|IX|X)",
@@ -119,7 +113,7 @@ def has_qbullet(reg, box, last_box, last_index, last_bull, bull_x0_list):
             bull_x0_list.append(box['x0'])
             return has_bull, index
         pure_section = section.lstrip(re.match(reg, section).group()).lower()
-        ask_reg = r'(what|when|where|how|why|which|who|whose|为什么|为啥|哪)'
+        ask_reg = r'(what|when|where|how|why|which|who|whose)'
         if re.match(ask_reg, pure_section):
             bull_x0_list.append(box['x0'])
             return has_bull, index
@@ -161,23 +155,11 @@ def qbullets_category(sections):
 
 
 BULLET_PATTERN = [[
-    r"第[零一二三四五六七八九十百0-9]+(分?编|部分)",
-    r"第[零一二三四五六七八九十百0-9]+章",
-    r"第[零一二三四五六七八九十百0-9]+节",
-    r"第[零一二三四五六七八九十百0-9]+条",
-    r"[\(（][零一二三四五六七八九十百]+[\)）]",
-], [
-    r"第[0-9]+章",
-    r"第[0-9]+节",
     r"[0-9]{,2}[\. 、]",
     r"[0-9]{,2}\.[0-9]{,2}[^a-zA-Z/%~-]",
     r"[0-9]{,2}\.[0-9]{,2}\.[0-9]{,2}",
     r"[0-9]{,2}\.[0-9]{,2}\.[0-9]{,2}\.[0-9]{,2}",
 ], [
-    r"第[零一二三四五六七八九十百0-9]+章",
-    r"第[零一二三四五六七八九十百0-9]+节",
-    r"[零一二三四五六七八九十百]+[ 、]",
-    r"[\(（][零一二三四五六七八九十百]+[\)）]",
     r"[\(（][0-9]{,2}[\)）]",
 ], [
     r"PART (ONE|TWO|THREE|FOUR|FIVE|SIX|SEVEN|EIGHT|NINE|TEN)",
@@ -330,7 +312,7 @@ def remove_contents_table(sections, eng=False):
             return (sections[i] if isinstance(sections[i],
                     type("")) else sections[i][0]).strip()
 
-        if not re.match(r"(contents|目录|目次|table of contents|致谢|acknowledge)$",
+        if not re.match(r"(contents|table of contents|acknowledge)$",
                         re.sub(r"( | |\u3000)+", "", get(i).split("@@")[0], re.IGNORECASE)):
             i += 1
             continue
@@ -399,7 +381,7 @@ def title_frequency(bull, sections):
 
 
 def not_title(txt):
-    if re.match(r"第[零一二三四五六七八九十百0-9]+条", txt):
+    if re.match(r"Article [0-9]+", txt):
         return False
     if len(txt.split()) > 12 or (txt.find(" ") < 0 and len(txt) >= 32):
         return True

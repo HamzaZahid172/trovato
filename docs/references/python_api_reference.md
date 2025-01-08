@@ -5,13 +5,13 @@ slug: /python_api_reference
 
 # Python API Reference
 
-A complete reference for RAGFlow's Python APIs. Before proceeding, please ensure you [have your RAGFlow API key ready for authentication](https://ragflow.io/docs/dev/acquire_ragflow_api_key).
+A complete reference for Trovato's Python APIs. Before proceeding, please ensure you [have your Trovato API key ready for authentication](https://trovato.ai/docs/dev/acquire_trovato_api_key).
 
 :::tip NOTE
 Run the following command to download the Python SDK:
 
 ```bash
-pip install ragflow-sdk
+pip install trovato-sdk
 ```
 :::
 
@@ -24,11 +24,11 @@ pip install ragflow-sdk
 ### Create dataset
 
 ```python
-RAGFlow.create_dataset(
+trovato.create_dataset(
     name: str,
     avatar: str = "",
     description: str = "",
-    embedding_model: str = "BAAI/bge-zh-v1.5",
+    embedding_model: str = "BAAI/bge-en-v1.5",
     language: str = "English",
     permission: str = "me", 
     chunk_method: str = "naive",
@@ -129,9 +129,9 @@ The parser configuration of the dataset. A `ParserConfig` object's attributes va
 #### Examples
 
 ```python
-from ragflow_sdk import RAGFlow
+from trovato_sdk import trovato
 
-rag_object = RAGFlow(api_key="<YOUR_API_KEY>", base_url="http://<YOUR_BASE_URL>:9380")
+rag_object = trovato(api_key="<YOUR_API_KEY>", base_url="http://<YOUR_BASE_URL>:9380")
 dataset = rag_object.create_dataset(name="kb_1")
 ```
 
@@ -140,7 +140,7 @@ dataset = rag_object.create_dataset(name="kb_1")
 ### Delete datasets
 
 ```python
-RAGFlow.delete_datasets(ids: list[str] = None)
+trovato.delete_datasets(ids: list[str] = None)
 ```
 
 Deletes datasets by ID.
@@ -167,7 +167,7 @@ rag_object.delete_datasets(ids=["id_1","id_2"])
 ### List datasets
 
 ```python
-RAGFlow.list_datasets(
+trovato.list_datasets(
     page: int = 1, 
     page_size: int = 30, 
     orderby: str = "create_time", 
@@ -271,9 +271,9 @@ A dictionary representing the attributes to update, with the following keys:
 #### Examples
 
 ```python
-from ragflow_sdk import RAGFlow
+from trovato_sdk import trovato
 
-rag_object = RAGFlow(api_key="<YOUR_API_KEY>", base_url="http://<YOUR_BASE_URL>:9380")
+rag_object = trovato(api_key="<YOUR_API_KEY>", base_url="http://<YOUR_BASE_URL>:9380")
 dataset = rag_object.list_datasets(name="kb_name")
 dataset.update({"embedding_model":"BAAI/bge-zh-v1.5", "chunk_method":"manual"})
 ```
@@ -378,9 +378,9 @@ A dictionary representing the attributes to update, with the following keys:
 #### Examples
 
 ```python
-from ragflow_sdk import RAGFlow
+from trovato_sdk import trovato
 
-rag_object = RAGFlow(api_key="<YOUR_API_KEY>", base_url="http://<YOUR_BASE_URL>:9380")
+rag_object = trovato(api_key="<YOUR_API_KEY>", base_url="http://<YOUR_BASE_URL>:9380")
 dataset = rag_object.list_datasets(id='id')
 dataset = dataset[0]
 doc = dataset.list_documents(id="wdfxb5t547d")
@@ -405,14 +405,14 @@ The downloaded document in bytes.
 #### Examples
 
 ```python
-from ragflow_sdk import RAGFlow
+from trovato_sdk import trovato
 
-rag_object = RAGFlow(api_key="<YOUR_API_KEY>", base_url="http://<YOUR_BASE_URL>:9380")
+rag_object = trovato(api_key="<YOUR_API_KEY>", base_url="http://<YOUR_BASE_URL>:9380")
 dataset = rag_object.list_datasets(id="id")
 dataset = dataset[0]
 doc = dataset.list_documents(id="wdfxb5t547d")
 doc = doc[0]
-open("~/ragflow.txt", "wb+").write(doc.download())
+open("~/trovato.txt", "wb+").write(doc.download())
 print(doc)
 ```
 
@@ -513,12 +513,12 @@ A `Document` object contains the following attributes:
 #### Examples
 
 ```python
-from ragflow_sdk import RAGFlow
+from trovato_sdk import trovato
 
-rag_object = RAGFlow(api_key="<YOUR_API_KEY>", base_url="http://<YOUR_BASE_URL>:9380")
+rag_object = trovato(api_key="<YOUR_API_KEY>", base_url="http://<YOUR_BASE_URL>:9380")
 dataset = rag_object.create_dataset(name="kb_1")
 
-filename1 = "~/ragflow.txt"
+filename1 = "~/trovato.txt"
 blob = open(filename1 , "rb").read()
 dataset.upload_documents([{"name":filename1,"blob":blob}])
 for doc in dataset.list_documents(keywords="rag", page=0, page_size=12):
@@ -549,9 +549,9 @@ The IDs of the documents to delete. Defaults to `None`. If it is not specified, 
 #### Examples
 
 ```python
-from ragflow_sdk import RAGFlow
+from trovato_sdk import trovato
 
-rag_object = RAGFlow(api_key="<YOUR_API_KEY>", base_url="http://<YOUR_BASE_URL>:9380")
+rag_object = trovato(api_key="<YOUR_API_KEY>", base_url="http://<YOUR_BASE_URL>:9380")
 dataset = rag_object.list_datasets(name="kb_1")
 dataset = dataset[0]
 dataset.delete_documents(ids=["id_1","id_2"])
@@ -581,7 +581,7 @@ The IDs of the documents to parse.
 #### Examples
 
 ```python
-rag_object = RAGFlow(api_key="<YOUR_API_KEY>", base_url="http://<YOUR_BASE_URL>:9380")
+rag_object = trovato(api_key="<YOUR_API_KEY>", base_url="http://<YOUR_BASE_URL>:9380")
 dataset = rag_object.create_dataset(name="dataset_name")
 documents = [
     {'display_name': 'test1.txt', 'blob': open('./test_data/test1.txt',"rb").read()},
@@ -621,7 +621,7 @@ The IDs of the documents for which parsing should be stopped.
 #### Examples
 
 ```python
-rag_object = RAGFlow(api_key="<YOUR_API_KEY>", base_url="http://<YOUR_BASE_URL>:9380")
+rag_object = trovato(api_key="<YOUR_API_KEY>", base_url="http://<YOUR_BASE_URL>:9380")
 dataset = rag_object.create_dataset(name="dataset_name")
 documents = [
     {'display_name': 'test1.txt', 'blob': open('./test_data/test1.txt',"rb").read()},
@@ -681,9 +681,9 @@ A `Chunk` object contains the following attributes:
 #### Examples
 
 ```python
-from ragflow_sdk import RAGFlow
+from trovato_sdk import trovato
 
-rag_object = RAGFlow(api_key="<YOUR_API_KEY>", base_url="http://<YOUR_BASE_URL>:9380")
+rag_object = trovato(api_key="<YOUR_API_KEY>", base_url="http://<YOUR_BASE_URL>:9380")
 dataset = rag_object.list_datasets(id="123")
 dtaset = dataset[0]
 doc = dataset.list_documents(id="wdfxb5t547d")
@@ -727,9 +727,9 @@ The ID of the chunk to retrieve. Default: `None`
 #### Examples
 
 ```python
-from ragflow_sdk import RAGFlow
+from trovato_sdk import trovato
 
-rag_object = RAGFlow(api_key="<YOUR_API_KEY>", base_url="http://<YOUR_BASE_URL>:9380")
+rag_object = trovato(api_key="<YOUR_API_KEY>", base_url="http://<YOUR_BASE_URL>:9380")
 dataset = rag_object.list_datasets("123")
 dataset = dataset[0]
 dataset.async_parse_documents(["wdfxb5t547d"])
@@ -761,9 +761,9 @@ The IDs of the chunks to delete. Defaults to `None`. If it is not specified, all
 #### Examples
 
 ```python
-from ragflow_sdk import RAGFlow
+from trovato_sdk import trovato
 
-rag_object = RAGFlow(api_key="<YOUR_API_KEY>", base_url="http://<YOUR_BASE_URL>:9380")
+rag_object = trovato(api_key="<YOUR_API_KEY>", base_url="http://<YOUR_BASE_URL>:9380")
 dataset = rag_object.list_datasets(id="123")
 dataset = dataset[0]
 doc = dataset.list_documents(id="wdfxb5t547d")
@@ -802,9 +802,9 @@ A dictionary representing the attributes to update, with the following keys:
 #### Examples
 
 ```python
-from ragflow_sdk import RAGFlow
+from trovato_sdk import trovato
 
-rag_object = RAGFlow(api_key="<YOUR_API_KEY>", base_url="http://<YOUR_BASE_URL>:9380")
+rag_object = trovato(api_key="<YOUR_API_KEY>", base_url="http://<YOUR_BASE_URL>:9380")
 dataset = rag_object.list_datasets(id="123")
 dataset = dataset[0]
 doc = dataset.list_documents(id="wdfxb5t547d")
@@ -818,7 +818,7 @@ chunk.update({"content":"sdfx..."})
 ### Retrieve chunks
 
 ```python
-RAGFlow.retrieve(question:str="", dataset_ids:list[str]=None, document_ids=list[str]=None, page:int=1, page_size:int=30, similarity_threshold:float=0.2, vector_similarity_weight:float=0.3, top_k:int=1024,rerank_id:str=None,keyword:bool=False,higlight:bool=False) -> list[Chunk]
+trovato.retrieve(question:str="", dataset_ids:list[str]=None, document_ids=list[str]=None, page:int=1, page_size:int=30, similarity_threshold:float=0.2, vector_similarity_weight:float=0.3, top_k:int=1024,rerank_id:str=None,keyword:bool=False,higlight:bool=False) -> list[Chunk]
 ```
 
 Retrieves chunks from specified datasets.
@@ -883,18 +883,18 @@ Specifies whether to enable highlighting of matched terms in the results:
 #### Examples
 
 ```python
-from ragflow_sdk import RAGFlow
+from trovato_sdk import trovato
 
-rag_object = RAGFlow(api_key="<YOUR_API_KEY>", base_url="http://<YOUR_BASE_URL>:9380")
-dataset = rag_object.list_datasets(name="ragflow")
+rag_object = trovato(api_key="<YOUR_API_KEY>", base_url="http://<YOUR_BASE_URL>:9380")
+dataset = rag_object.list_datasets(name="trovato")
 dataset = dataset[0]
-name = 'ragflow_test.txt'
-path = './test_data/ragflow_test.txt'
+name = 'trovato_test.txt'
+path = './test_data/trovato_test.txt'
 rag_object.create_document(dataset, name=name, blob=open(path, "rb").read())
 doc = dataset.list_documents(name=name)
 doc = doc[0]
 dataset.async_parse_documents([doc.id])
-for c in rag_object.retrieve(question="What's ragflow?", 
+for c in rag_object.retrieve(question="What's trovato?", 
              dataset_ids=[dataset.id], document_ids=[doc.id], 
              page=1, page_size=30, similarity_threshold=0.2, 
              vector_similarity_weight=0.3,
@@ -912,7 +912,7 @@ for c in rag_object.retrieve(question="What's ragflow?",
 ### Create chat assistant
 
 ```python
-RAGFlow.create_chat(
+trovato.create_chat(
     name: str, 
     avatar: str = "", 
     dataset_ids: list[str] = [], 
@@ -958,7 +958,7 @@ The LLM settings for the chat assistant to create. Defaults to `None`. When the 
 
 Instructions for the LLM to follow.  A `Prompt` object contains the following attributes:
 
-- `similarity_threshold`: `float` RAGFlow employs either a combination of weighted keyword similarity and weighted vector cosine similarity, or a combination of weighted keyword similarity and weighted reranking score during retrieval. If a similarity score falls below this threshold, the corresponding chunk will be excluded from the results. The default value is `0.2`.
+- `similarity_threshold`: `float` trovato employs either a combination of weighted keyword similarity and weighted vector cosine similarity, or a combination of weighted keyword similarity and weighted reranking score during retrieval. If a similarity score falls below this threshold, the corresponding chunk will be excluded from the results. The default value is `0.2`.
 - `keywords_similarity_weight`: `float` This argument sets the weight of keyword similarity in the hybrid similarity score with vector cosine similarity or reranking model similarity. By adjusting this weight, you can control the influence of keyword similarity in relation to other similarity measures. The default value is `0.7`.
 - `top_n`: `int` This argument specifies the number of top chunks with similarity scores above the `similarity_threshold` that are fed to the LLM. The LLM will *only* access these 'top N' chunks.  The default value is `8`.
 - `variables`: `list[dict[]]` This argument lists the variables to use in the 'System' field of **Chat Configurations**. Note that:
@@ -979,9 +979,9 @@ Instructions for the LLM to follow.  A `Prompt` object contains the following at
 #### Examples
 
 ```python
-from ragflow_sdk import RAGFlow
+from trovato_sdk import trovato
 
-rag_object = RAGFlow(api_key="<YOUR_API_KEY>", base_url="http://<YOUR_BASE_URL>:9380")
+rag_object = trovato(api_key="<YOUR_API_KEY>", base_url="http://<YOUR_BASE_URL>:9380")
 datasets = rag_object.list_datasets(name="kb_1")
 dataset_ids = []
 for dataset in datasets:
@@ -1016,7 +1016,7 @@ A dictionary representing the attributes to update, with the following keys:
   - `"frequency penalty"`, `float` Similar to presence penalty, this reduces the model’s tendency to repeat the same words.
   - `"max_token"`, `int` The maximum length of the model's output, measured in the number of tokens (words or pieces of words). Defaults to `512`. If disabled, you lift the maximum token limit, allowing the model to determine the number of tokens in its responses.
 - `"prompt"` : Instructions for the LLM to follow.
-  - `"similarity_threshold"`: `float` RAGFlow employs either a combination of weighted keyword similarity and weighted vector cosine similarity, or a combination of weighted keyword similarity and weighted rerank score during retrieval. This argument sets the threshold for similarities between the user query and chunks. If a similarity score falls below this threshold, the corresponding chunk will be excluded from the results. The default value is `0.2`.
+  - `"similarity_threshold"`: `float` trovato employs either a combination of weighted keyword similarity and weighted vector cosine similarity, or a combination of weighted keyword similarity and weighted rerank score during retrieval. This argument sets the threshold for similarities between the user query and chunks. If a similarity score falls below this threshold, the corresponding chunk will be excluded from the results. The default value is `0.2`.
   - `"keywords_similarity_weight"`: `float` This argument sets the weight of keyword similarity in the hybrid similarity score with vector cosine similarity or reranking model similarity. By adjusting this weight, you can control the influence of keyword similarity in relation to other similarity measures. The default value is `0.7`.
   - `"top_n"`: `int` This argument specifies the number of top chunks with similarity scores above the `similarity_threshold` that are fed to the LLM. The LLM will *only* access these 'top N' chunks.  The default value is `8`.
   - `"variables"`: `list[dict[]]`  This argument lists the variables to use in the 'System' field of **Chat Configurations**. Note that:
@@ -1037,9 +1037,9 @@ A dictionary representing the attributes to update, with the following keys:
 #### Examples
 
 ```python
-from ragflow_sdk import RAGFlow
+from trovato_sdk import trovato
 
-rag_object = RAGFlow(api_key="<YOUR_API_KEY>", base_url="http://<YOUR_BASE_URL>:9380")
+rag_object = trovato(api_key="<YOUR_API_KEY>", base_url="http://<YOUR_BASE_URL>:9380")
 datasets = rag_object.list_datasets(name="kb_1")
 dataset_id = datasets[0].id
 assistant = rag_object.create_chat("Miss R", dataset_ids=[dataset_id])
@@ -1051,7 +1051,7 @@ assistant.update({"name": "Stefan", "llm": {"temperature": 0.8}, "prompt": {"top
 ### Delete chat assistants
 
 ```python
-RAGFlow.delete_chats(ids: list[str] = None)
+trovato.delete_chats(ids: list[str] = None)
 ```
 
 Deletes chat assistants by ID.
@@ -1070,9 +1070,9 @@ The IDs of the chat assistants to delete. Defaults to `None`. If it is empty or 
 #### Examples
 
 ```python
-from ragflow_sdk import RAGFlow
+from trovato_sdk import trovato
 
-rag_object = RAGFlow(api_key="<YOUR_API_KEY>", base_url="http://<YOUR_BASE_URL>:9380")
+rag_object = trovato(api_key="<YOUR_API_KEY>", base_url="http://<YOUR_BASE_URL>:9380")
 rag_object.delete_chats(ids=["id_1","id_2"])
 ```
 
@@ -1081,7 +1081,7 @@ rag_object.delete_chats(ids=["id_1","id_2"])
 ### List chat assistants
 
 ```python
-RAGFlow.list_chats(
+trovato.list_chats(
     page: int = 1, 
     page_size: int = 30, 
     orderby: str = "create_time", 
@@ -1130,9 +1130,9 @@ The name of the chat assistant to retrieve. Defaults to `None`.
 #### Examples
 
 ```python
-from ragflow_sdk import RAGFlow
+from trovato_sdk import trovato
 
-rag_object = RAGFlow(api_key="<YOUR_API_KEY>", base_url="http://<YOUR_BASE_URL>:9380")
+rag_object = trovato(api_key="<YOUR_API_KEY>", base_url="http://<YOUR_BASE_URL>:9380")
 for assistant in rag_object.list_chats():
     print(assistant)
 ```
@@ -1169,9 +1169,9 @@ The name of the chat session to create.
 #### Examples
 
 ```python
-from ragflow_sdk import RAGFlow
+from trovato_sdk import trovato
 
-rag_object = RAGFlow(api_key="<YOUR_API_KEY>", base_url="http://<YOUR_BASE_URL>:9380")
+rag_object = trovato(api_key="<YOUR_API_KEY>", base_url="http://<YOUR_BASE_URL>:9380")
 assistant = rag_object.list_chats(name="Miss R")
 assistant = assistant[0]
 session = assistant.create_session()
@@ -1203,9 +1203,9 @@ A dictionary representing the attributes to update, with only one key:
 #### Examples
 
 ```python
-from ragflow_sdk import RAGFlow
+from trovato_sdk import trovato
 
-rag_object = RAGFlow(api_key="<YOUR_API_KEY>", base_url="http://<YOUR_BASE_URL>:9380")
+rag_object = trovato(api_key="<YOUR_API_KEY>", base_url="http://<YOUR_BASE_URL>:9380")
 assistant = rag_object.list_chats(name="Miss R")
 assistant = assistant[0]
 session = assistant.create_session("session_name")
@@ -1266,9 +1266,9 @@ The name of the chat session to retrieve. Defaults to `None`.
 #### Examples
 
 ```python
-from ragflow_sdk import RAGFlow
+from trovato_sdk import trovato
 
-rag_object = RAGFlow(api_key="<YOUR_API_KEY>", base_url="http://<YOUR_BASE_URL>:9380")
+rag_object = trovato(api_key="<YOUR_API_KEY>", base_url="http://<YOUR_BASE_URL>:9380")
 assistant = rag_object.list_chats(name="Miss R")
 assistant = assistant[0]
 for session in assistant.list_sessions():
@@ -1299,9 +1299,9 @@ The IDs of the sessions to delete. Defaults to `None`. If it is not specified, a
 #### Examples
 
 ```python
-from ragflow_sdk import RAGFlow
+from trovato_sdk import trovato
 
-rag_object = RAGFlow(api_key="<YOUR_API_KEY>", base_url="http://<YOUR_BASE_URL>:9380")
+rag_object = trovato(api_key="<YOUR_API_KEY>", base_url="http://<YOUR_BASE_URL>:9380")
 assistant = rag_object.list_chats(name="Miss R")
 assistant = assistant[0]
 assistant.delete_sessions(ids=["id_1","id_2"])
@@ -1381,9 +1381,9 @@ A list of `Chunk` objects representing references to the message, each containin
 #### Examples
 
 ```python
-from ragflow_sdk import RAGFlow
+from trovato_sdk import trovato
 
-rag_object = RAGFlow(api_key="<YOUR_API_KEY>", base_url="http://<YOUR_BASE_URL>:9380")
+rag_object = trovato(api_key="<YOUR_API_KEY>", base_url="http://<YOUR_BASE_URL>:9380")
 assistant = rag_object.list_chats(name="Miss R")
 assistant = assistant[0]
 session = assistant.create_session()    
@@ -1417,9 +1417,9 @@ Creates a session with the current agent.
 
 The id of agent
 
-##### rag:`RAGFlow object`
+##### rag:`trovato object`
 
-The RAGFlow object
+The trovato object
 
 ##### **kwargs
 
@@ -1436,9 +1436,9 @@ The parameters in `begin` component.
 #### Examples
 
 ```python
-from ragflow_sdk import RAGFlow
+from trovato_sdk import trovato
 
-rag_object = RAGFlow(api_key="<YOUR_API_KEY>", base_url="http://<YOUR_BASE_URL>:9380")
+rag_object = trovato(api_key="<YOUR_API_KEY>", base_url="http://<YOUR_BASE_URL>:9380")
 AGENT_ID = "AGENT_ID"
 session = create_session(AGENT_ID,rag_object)
 ```
@@ -1513,9 +1513,9 @@ A list of `Chunk` objects representing references to the message, each containin
 #### Examples
 
 ```python
-from ragflow_sdk import RAGFlow,Agent
+from trovato_sdk import trovato,Agent
 
-rag_object = RAGFlow(api_key="<YOUR_API_KEY>", base_url="http://<YOUR_BASE_URL>:9380")
+rag_object = trovato(api_key="<YOUR_API_KEY>", base_url="http://<YOUR_BASE_URL>:9380")
 AGENT_id = "AGENT_ID"
 session = Agent.create_session(AGENT_id,rag_object)    
 
@@ -1583,9 +1583,9 @@ The ID of the agent session to retrieve. Defaults to `None`.
 #### Examples
 
 ```python
-from ragflow_sdk import RAGFlow
+from trovato_sdk import trovato
 
-rag_object = RAGFlow(api_key="<YOUR_API_KEY>", base_url="http://<YOUR_BASE_URL>:9380")
+rag_object = trovato(api_key="<YOUR_API_KEY>", base_url="http://<YOUR_BASE_URL>:9380")
 agent_id = "2710f2269b4611ef8fdf0242ac120006"
 sessions=Agent.list_sessions(agent_id,rag_object)
 for session in sessions:
@@ -1601,7 +1601,7 @@ for session in sessions:
 ### List agents
 
 ```python
-RAGFlow.list_agents(
+trovato.list_agents(
     page: int = 1, 
     page_size: int = 30, 
     orderby: str = "create_time", 
@@ -1650,8 +1650,8 @@ The name of the agent to retrieve. Defaults to `None`.
 #### Examples
 
 ```python
-from ragflow_sdk import RAGFlow
-rag_object = RAGFlow(api_key="<YOUR_API_KEY>", base_url="http://<YOUR_BASE_URL>:9380")
+from trovato_sdk import trovato
+rag_object = trovato(api_key="<YOUR_API_KEY>", base_url="http://<YOUR_BASE_URL>:9380")
 for agent in rag_object.list_agents():
     print(agent)
 ```

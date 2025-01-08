@@ -59,13 +59,18 @@ class Docx(DocxParser):
         for p in self.doc.paragraphs:
             if pn > to_page:
                 break
+            
             try:
                 question_level, p_text = docx_question_level(p, bull)
                 if not isinstance(question_level, int):
-                    question_level = 0  # Default to 0 if parsing fails
+                    question_level = 0 # Default to 0 if parsing fails
             except Exception as e:
                 question_level = 0  # Default level on error
                 logging.warning(f"Failed to parse question level: {e}")
+            
+            if not p_text.strip("\n"):
+                continue
+            lines.append((question_level, p_text))
 
             for run in p.runs:
                 if 'lastRenderedPageBreak' in run._element.xml:
@@ -156,11 +161,9 @@ def chunk(filename, binary=None, from_page=0, to_page=100000,
 
     if re.search(r"\.docx$", filename, re.IGNORECASE):
         callback(0.1, "Start to parse.")
-        for txt in Docx()(filename, binary):
-            sections.append(txt)
-        callback(0.8, "Finish parsing.")
-        chunks = sections
-        return tokenize_chunks(chunks, doc, eng, pdf_parser)
+        chunks = Docx()(filename, binary)
+        callback(0.7, "Finish parsing.")
+        return tokenize_chunks(chunks, doc, eng, None)
 
     elif re.search(r"\.pdf$", filename, re.IGNORECASE):
         pdf_parser = Pdf() if kwargs.get(

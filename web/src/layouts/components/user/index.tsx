@@ -19,7 +19,7 @@ const App: React.FC = () => {
       className={styles.clickAvailable}
       src={
         userInfo.avatar ??
-        'https://zos.alipayobjects.com/rmsportal/jkjgkEfvpUPVyRjUImniVslZfWPnJuuZ.png'
+        '/user.png'
       }
     />
   );
