@@ -92,11 +92,7 @@ export default {
       namePlaceholder: 'Please input name!',
       doc: 'Docs',
       datasetDescription:
-<<<<<<< HEAD
-        '😉 Please wait for your files to finish parsing before starting an AI-powered chat.',
-=======
         '📌 Please wait for your file(s) to finish parsing before starting a chat or agent session.',
->>>>>>> e1e7dd1d (Many changes.)
       addFile: 'Add file',
       searchFiles: 'Search your files',
       localFiles: 'Local files',
