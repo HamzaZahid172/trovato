@@ -205,7 +205,7 @@ def new_token():
         obj = {
             "tenant_id": tenant_id,
             "token": generate_confirmation_token(tenant_id),
-            "beta": generate_confirmation_token(generate_confirmation_token(tenant_id)).replace("ragflow-", "")[:32],
+            "beta": generate_confirmation_token(generate_confirmation_token(tenant_id)).replace("trovato-", "")[:32],
             "create_time": current_timestamp(),
             "create_date": datetime_format(datetime.now()),
             "update_time": None,
@@ -261,7 +261,7 @@ def token_list():
         objs = [o.to_dict() for o in objs]
         for o in objs:
             if not o["beta"]:
-                o["beta"] = generate_confirmation_token(generate_confirmation_token(tenants[0].tenant_id)).replace("ragflow-", "")[:32]
+                o["beta"] = generate_confirmation_token(generate_confirmation_token(tenants[0].tenant_id)).replace("trovato-", "")[:32]
                 APITokenService.filter_update([APIToken.tenant_id == tenant_id, APIToken.token == o["token"]], o)
         return get_json_result(data=objs)
     except Exception as e:

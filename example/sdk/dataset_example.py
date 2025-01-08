@@ -22,7 +22,7 @@ from ragflow_sdk import RAGFlow
 import sys
 
 HOST_ADDRESS = "http://127.0.0.1"
-API_KEY = "ragflow-IzZmY1MGVhYTBhMjExZWZiYTdjMDI0Mm"
+API_KEY = "trovato-IzZmY1MGVhYTBhMjExZWZiYTdjMDI0Mm"
 
 try:
     # create a ragflow instance

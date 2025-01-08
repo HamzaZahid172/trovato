@@ -11,9 +11,9 @@ def test_list_agents_with_success(get_api_key_fixture):
 
 @pytest.mark.skip(reason="")
 def test_converse_with_agent_with_success(get_api_key_fixture):
-    API_KEY = "ragflow-BkOGNhYjIyN2JiODExZWY5MzVhMDI0Mm"
+    API_KEY = "trovato-BkOGNhYjIyN2JiODExZWY5MzVhMDI0Mm"
     agent_id = "ebfada2eb2bc11ef968a0242ac120006"
     rag = RAGFlow(API_KEY,HOST_ADDRESS)
-    lang = "Chinese"
+    lang = "English"
     file = "How is the weather tomorrow?"
     Agent.ask(agent_id=agent_id,rag=rag,lang=lang,file=file)

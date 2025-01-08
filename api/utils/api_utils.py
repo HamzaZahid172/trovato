@@ -333,7 +333,7 @@ def get_error_data_result(message='Sorry! Data missing!', code=settings.RetCode.
 
 def generate_confirmation_token(tenent_id):
     serializer = URLSafeTimedSerializer(tenent_id)
-    return "ragflow-" + serializer.dumps(get_uuid(), salt=tenent_id)[2:34]
+    return "trovato-" + serializer.dumps(get_uuid(), salt=tenent_id)[2:34]
 
 
 def valid(permission,valid_permission,language,valid_language,chunk_method,valid_chunk_method):
