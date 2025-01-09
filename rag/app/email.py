@@ -27,7 +27,7 @@ def chunk(
     binary=None,
     from_page=0,
     to_page=100000,
-    lang="Chinese",
+    lang="English",
     callback=None,
     **kwargs,
 ):
