@@ -51,18 +51,19 @@ def update_progress():
         except Exception:
             logging.exception("update_progress exception")
 
-
+#Updated logo
 if __name__ == '__main__':
     logging.info(r"""
-        ____   ___    ______ ______ __               
-       / __ \ /   |  / ____// ____// /____  _      __
-      / /_/ // /| | / / __ / /_   / // __ \| | /| / /
-     / _, _// ___ |/ /_/ // __/  / // /_/ /| |/ |/ / 
-    /_/ |_|/_/  |_|\____//_/    /_/ \____/ |__/|__/                             
+      _______                  _        
+     |__   __|                | |       
+        | |_ __ _____   ____ _| |_ ___  
+        | | '__/ _ \ \ / / _` | __/ _ \ 
+        | | | | (_) \ V / (_| | || (_) |
+        |_|_|  \___/ \_/ \__,_|\__\___/                             
 
     """)
     logging.info(
-        f'RAGFlow version: {get_ragflow_version()}'
+        f'Trovato version: {get_ragflow_version()}'
     )
     logging.info(
         f'project base: {utils.file_utils.get_project_base_directory()}'
@@ -79,7 +80,7 @@ if __name__ == '__main__':
 
     parser = argparse.ArgumentParser()
     parser.add_argument(
-        "--version", default=False, help="RAGFlow version", action="store_true"
+        "--version", default=False, help="Trovato version", action="store_true"
     )
     parser.add_argument(
         "--debug", default=False, help="debug mode", action="store_true"
@@ -101,7 +102,7 @@ if __name__ == '__main__':
 
     # start http server
     try:
-        logging.info("RAGFlow HTTP server start...")
+        logging.info("Trovato HTTP server start...")
         run_simple(
             hostname=settings.HOST_IP,
             port=settings.HOST_PORT,
