@@ -1,47 +1,40 @@
 <div align="center">
-<a href="https://demo.ragflow.io/">
-<img src="web/src/assets/logo-with-text.png" width="520" alt="ragflow logo">
+<a href="https://demo.trovato.ai/">
+<img src="web/src/assets/logo-with-text.png" width="520" alt="trovato logo">
 </a>
 </div>
 
-<p align="center">
-  <a href="./README.md">English</a> |
-  <a href="./README_zh.md">简体中文</a> |
-  <a href="./README_ja.md">日本語</a> |
-  <a href="./README_ko.md">한국어</a> |
-  <a href="./README_id.md">Bahasa Indonesia</a>
-</p>
 
 <p align="center">
-    <a href="https://x.com/intent/follow?screen_name=infiniflowai" target="_blank">
-        <img src="https://img.shields.io/twitter/follow/infiniflow?logo=X&color=%20%23f5f5f5" alt="follow on X(Twitter)">
+    <a href="https://x.com/intent/follow?screen_name=brentonpartnersai" target="_blank">
+        <img src="https://img.shields.io/twitter/follow/brentonpartners?logo=X&color=%20%23f5f5f5" alt="follow on X(Twitter)">
     </a>
-    <a href="https://demo.ragflow.io" target="_blank">
+    <a href="https://demo.trovato.ai" target="_blank">
         <img alt="Static Badge" src="https://img.shields.io/badge/Online-Demo-4e6b99">
     </a>
-    <a href="https://hub.docker.com/r/infiniflow/ragflow" target="_blank">
-        <img src="https://img.shields.io/badge/docker_pull-ragflow:v0.15.0-brightgreen" alt="docker pull infiniflow/ragflow:v0.15.0">
+    <a href="https://hub.docker.com/r/brentonpartners/trovato" target="_blank">
+        <img src="https://img.shields.io/badge/docker_pull-trovato:v0.15.0-brightgreen" alt="docker pull brentonpartners/trovato:v0.15.0">
     </a>
-    <a href="https://github.com/infiniflow/ragflow/releases/latest">
-        <img src="https://img.shields.io/github/v/release/infiniflow/ragflow?color=blue&label=Latest%20Release" alt="Latest Release">
+    <a href="https://github.com/brentonpartners/trovato/releases/latest">
+        <img src="https://img.shields.io/github/v/release/brentonpartners/trovato?color=blue&label=Latest%20Release" alt="Latest Release">
     </a>
-    <a href="https://github.com/infiniflow/ragflow/blob/main/LICENSE">
+    <a href="https://github.com/brentonpartners/trovato/blob/main/LICENSE">
         <img height="21" src="https://img.shields.io/badge/License-Apache--2.0-ffffff?labelColor=d4eaf7&color=2e6cc4" alt="license">
     </a>
 </p>
 
 <h4 align="center">
-  <a href="https://ragflow.io/docs/dev/">Document</a> |
-  <a href="https://github.com/infiniflow/ragflow/issues/162">Roadmap</a> |
-  <a href="https://twitter.com/infiniflowai">Twitter</a> |
+  <a href="https://trovato.ai/docs/dev/">Document</a> |
+  <a href="https://github.com/brentonpartners/trovato/issues/162">Roadmap</a> |
+  <a href="https://twitter.com/brentonpartnersai">Twitter</a> |
   <a href="https://discord.gg/4XxujFgUN7">Discord</a> |
-  <a href="https://demo.ragflow.io">Demo</a>
+  <a href="https://demo.trovato.ai">Demo</a>
 </h4>
 
 <details open>
 <summary></b>📕 Table of Contents</b></summary>
 
-- 💡 [What is RAGFlow?](#-what-is-ragflow)
+- 💡 [What is Trovato?](#-what-is-trovato)
 - 🎮 [Demo](#-demo)
 - 📌 [Latest Updates](#-latest-updates)
 - 🌟 [Key Features](#-key-features)
@@ -58,18 +51,18 @@
 
 </details>
 
-## 💡 What is RAGFlow?
+## 💡 What is trovato?
 
-[RAGFlow](https://ragflow.io/) is an open-source RAG (Retrieval-Augmented Generation) engine based on deep document
+[Trovato](https://trovato.ai/) is an open-source RAG (Retrieval-Augmented Generation) engine based on deep document
 understanding. It offers a streamlined RAG workflow for businesses of any scale, combining LLM (Large Language Models)
 to provide truthful question-answering capabilities, backed by well-founded citations from various complex formatted
 data.
 
 ## 🎮 Demo
 
-Try our demo at [https://demo.ragflow.io](https://demo.ragflow.io).
+Try our demo at [https://demo.trovato.ai](https://demo.trovato.ai).
 <div align="center" style="margin-top:20px;margin-bottom:20px;">
-<img src="https://github.com/infiniflow/ragflow/assets/7248/2f6baa3e-1092-4f11-866d-36f6a9d075e5" width="1200"/>
+<img src="https://github.com/brentonpartners/trovato/assets/7248/2f6baa3e-1092-4f11-866d-36f6a9d075e5" width="1200"/>
 <img src="https://github.com/user-attachments/assets/504bbbf1-c9f7-4d83-8cc5-e9cb63c26db6" width="1200"/>
 </div>
 
@@ -122,7 +115,7 @@ releases! 🌟
 ## 🔎 System Architecture
 
 <div align="center" style="margin-top:20px;margin-bottom:20px;">
-<img src="https://github.com/infiniflow/ragflow/assets/12318111/d6ac5664-c237-4200-a7c2-a4a00691b485" width="1000"/>
+<img src="https://github.com/brentonpartners/trovato/assets/12318111/d6ac5664-c237-4200-a7c2-a4a00691b485" width="1000"/>
 </div>
 
 ## 🎬 Get Started
@@ -163,19 +156,19 @@ releases! 🌟
 2. Clone the repo:
 
    ```bash
-   $ git clone https://github.com/infiniflow/ragflow.git
+   $ git clone https://github.com/brentonpartners/trovato.git
    ```
 
 3. Start up the server using the pre-built Docker images:
 
-   > The command below downloads the `v0.15.0-slim` edition of the RAGFlow Docker image. Refer to the following table for descriptions of different RAGFlow editions. To download an RAGFlow edition different from `v0.15.0-slim`, update the `RAGFLOW_IMAGE` variable accordingly in **docker/.env** before using `docker compose` to start the server. For example: set `RAGFLOW_IMAGE=infiniflow/ragflow:v0.15.0` for the full edition `v0.15.0`.
+   > The command below downloads the `v0.15.0-slim` edition of the trovato Docker image. Refer to the following table for descriptions of different trovato editions. To download an trovato edition different from `v0.15.0-slim`, update the `trovato_IMAGE` variable accordingly in **docker/.env** before using `docker compose` to start the server. For example: set `trovato_IMAGE=brentonpartners/trovato:v0.15.0` for the full edition `v0.15.0`.
 
    ```bash
-   $ cd ragflow
+   $ cd trovato
    $ docker compose -f docker/docker-compose.yml up -d
    ```
 
-   | RAGFlow image tag | Image size (GB) | Has embedding models? | Stable?                  |
+   | trovato image tag | Image size (GB) | Has embedding models? | Stable?                  |
    | ----------------- | --------------- | --------------------- | ------------------------ |
    | v0.15.0           | &approx;9       | :heavy_check_mark:    | Stable release           |
    | v0.15.0-slim      | &approx;2       | ❌                    | Stable release           |
@@ -185,7 +178,7 @@ releases! 🌟
 4. Check the server status after having the server up and running:
 
    ```bash
-   $ docker logs -f ragflow-server
+   $ docker logs -f trovato-server
    ```
 
    _The following output confirms a successful launch of the system:_
@@ -203,16 +196,16 @@ releases! 🌟
     * Running on http://x.x.x.x:9380
     INFO:werkzeug:Press CTRL+C to quit
    ```
-   > If you skip this confirmation step and directly log in to RAGFlow, your browser may prompt a `network anormal`
-   error because, at that moment, your RAGFlow may not be fully initialized.
+   > If you skip this confirmation step and directly log in to trovato, your browser may prompt a `network anormal`
+   error because, at that moment, your trovato may not be fully initialized.
 
-5. In your web browser, enter the IP address of your server and log in to RAGFlow.
+5. In your web browser, enter the IP address of your server and log in to trovato.
    > With the default settings, you only need to enter `http://IP_OF_YOUR_MACHINE` (**sans** port number) as the default
    HTTP serving port `80` can be omitted when using the default configurations.
 6. In [service_conf.yaml.template](./docker/service_conf.yaml.template), select the desired LLM factory in `user_default_llm` and update
    the `API_KEY` field with the corresponding API key.
 
-   > See [llm_api_key_setup](https://ragflow.io/docs/dev/llm_api_key_setup) for more information.
+   > See [llm_api_key_setup](https://trovato.ai/docs/dev/llm_api_key_setup) for more information.
 
    _The show is on!_
 
@@ -239,7 +232,7 @@ Updates to the above configurations require a reboot of all containers to take e
 
 ### Switch doc engine from Elasticsearch to Infinity
 
-RAGFlow uses Elasticsearch by default for storing full text and vectors. To switch to [Infinity](https://github.com/infiniflow/infinity/), follow these steps:
+trovato uses Elasticsearch by default for storing full text and vectors. To switch to [Infinity](https://github.com/brentonpartners/infinity/), follow these steps:
 
 1. Stop all running containers:
 
@@ -263,9 +256,9 @@ RAGFlow uses Elasticsearch by default for storing full text and vectors. To swit
 This image is approximately 2 GB in size and relies on external LLM and embedding services.
 
 ```bash
-git clone https://github.com/infiniflow/ragflow.git
-cd ragflow/
-docker build --build-arg LIGHTEN=1 -f Dockerfile -t infiniflow/ragflow:nightly-slim .
+git clone https://github.com/brentonpartners/trovato.git
+cd trovato/
+docker build --build-arg LIGHTEN=1 -f Dockerfile -t brentonpartners/trovato:nightly-slim .
 ```
 
 ## 🔧 Build a Docker image including embedding models
@@ -273,9 +266,9 @@ docker build --build-arg LIGHTEN=1 -f Dockerfile -t infiniflow/ragflow:nightly-s
 This image is approximately 9 GB in size. As it includes embedding models, it relies on external LLM services only.
 
 ```bash
-git clone https://github.com/infiniflow/ragflow.git
-cd ragflow/
-docker build -f Dockerfile -t infiniflow/ragflow:nightly .
+git clone https://github.com/brentonpartners/trovato.git
+cd trovato/
+docker build -f Dockerfile -t brentonpartners/trovato:nightly .
 ```
 
 ## 🔨 Launch service from source for development
@@ -288,9 +281,9 @@ docker build -f Dockerfile -t infiniflow/ragflow:nightly .
 
 2. Clone the source code and install Python dependencies:
    ```bash
-   git clone https://github.com/infiniflow/ragflow.git
-   cd ragflow/
-   ~/.local/bin/poetry install --sync --no-root --with=full # install RAGFlow dependent python modules
+   git clone https://github.com/brentonpartners/trovato.git
+   cd trovato/
+   ~/.local/bin/poetry install --sync --no-root --with=full # install trovato dependent python modules
    ```
 
 3. Launch the dependent services (MinIO, Elasticsearch, Redis, and MySQL) using Docker Compose:
@@ -332,22 +325,22 @@ docker build -f Dockerfile -t infiniflow/ragflow:nightly .
 
 ## 📚 Documentation
 
-- [Quickstart](https://ragflow.io/docs/dev/)
-- [User guide](https://ragflow.io/docs/dev/category/guides)
-- [References](https://ragflow.io/docs/dev/category/references)
-- [FAQ](https://ragflow.io/docs/dev/faq)
+- [Quickstart](https://trovato.ai/docs/dev/)
+- [User guide](https://trovato.ai/docs/dev/category/guides)
+- [References](https://trovato.ai/docs/dev/category/references)
+- [FAQ](https://trovato.ai/docs/dev/faq)
 
 ## 📜 Roadmap
 
-See the [RAGFlow Roadmap 2024](https://github.com/infiniflow/ragflow/issues/162)
+See the [Trovato Roadmap 2024](https://github.com/brentonpartners/trovato/issues/162)
 
 ## 🏄 Community
 
 - [Discord](https://discord.gg/4XxujFgUN7)
-- [Twitter](https://twitter.com/infiniflowai)
-- [GitHub Discussions](https://github.com/orgs/infiniflow/discussions)
+- [Twitter](https://twitter.com/brentonpartnersai)
+- [GitHub Discussions](https://github.com/orgs/brentonpartners/discussions)
 
 ## 🙌 Contributing
 
-RAGFlow flourishes via open-source collaboration. In this spirit, we embrace diverse contributions from the community.
+trovato flourishes via open-source collaboration. In this spirit, we embrace diverse contributions from the community.
 If you would like to be a part, review our [Contribution Guidelines](./CONTRIBUTING.md) first.
