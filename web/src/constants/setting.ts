@@ -316,6 +316,7 @@ export const TimezoneList = [
   'UTC+2\tAfrica/Gaborone',
   'UTC+2\tAfrica/Harare',
   'UTC+2\tAfrica/Johannesburg',
+  'UTC+2\tAfrica/Cape Town',
   'UTC+2\tAfrica/Juba',
   'UTC+2\tAfrica/Khartoum',
   'UTC+2\tAfrica/Kigali',
