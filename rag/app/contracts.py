@@ -114,7 +114,7 @@ class Docx(DocxParser):
 
 class Pdf(PdfParser):
     def __init__(self):
-        self.model_speciess = ParserType.CONTRACTS.value
+        self.model_speciess = ParserType.LAWS.value
         super().__init__()
 
     def __call__(self, filename, binary=None, from_page=0,
@@ -145,7 +145,7 @@ class Pdf(PdfParser):
 
 
 def chunk(filename, binary=None, from_page=0, to_page=100000,
-          lang="Chinese", callback=None, **kwargs):
+          lang="English", callback=None, **kwargs):
     """
         Supported file formats are docx, pdf, txt.
     """

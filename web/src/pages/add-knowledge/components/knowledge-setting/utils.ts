@@ -6,6 +6,7 @@ const getImageName = (prefix: string, length: number) =>
 export const ImageMap = {
   book: getImageName('book', 4),
   laws: getImageName('law', 2),
+  contracts: getImageName('law', 2),
   manual: getImageName('manual', 4),
   picture: getImageName('media', 2),
   naive: getImageName('naive', 2),

@@ -72,7 +72,7 @@ def create(tenant_id):
               description: Language of the dataset.
             chunk_method:
               type: string
-              enum: ["naive", "manual", "qa", "table", "paper", "book", "laws",
+              enum: ["naive", "manual", "qa", "table", "paper", "book", "contracts", "laws",
                      "presentation", "picture", "one", "knowledge_graph", "email"]
               description: Chunking method.
             parser_config:
@@ -301,7 +301,7 @@ def update(tenant_id, dataset_id):
               description: Updated language.
             chunk_method:
               type: string
-              enum: ["naive", "manual", "qa", "table", "paper", "book", "laws",
+              enum: ["naive", "manual", "qa", "table", "paper", "book", "contracts", "laws",
                      "presentation", "picture", "one", "knowledge_graph", "email"]
               description: Updated chunking method.
             parser_config:
@@ -333,6 +333,7 @@ def update(tenant_id, dataset_id):
         "table",
         "paper",
         "book",
+        "contracts"
         "laws",
         "presentation",
         "picture",

@@ -270,6 +270,7 @@ def update_doc(tenant_id, dataset_id, document_id):
             "table",
             "paper",
             "book",
+            "contracts"
             "laws",
             "presentation",
             "picture",

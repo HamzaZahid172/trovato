@@ -212,6 +212,11 @@ export default {
       </p><p>
       The chunk has a granularity consistent with 'ARTICLE', ensuring all upper level text is included in the chunk.
       </p>`,
+      contracts: `<p>Supported file formats are <b>DOCX</b>, <b>PDF</b>, <b>TXT</b>.</p><p>
+      Commercial contracts typically follow a rigorous writing format. We use text feature to identify split point. 
+      </p><p>
+      The chunk has a granularity consistent with 'ARTICLE', ensuring all upper level text is included in the chunk.
+      </p>`,
       manual: `<p>Only <b>PDF</b> is supported.</p><p>
       We assume that the manual has a hierarchical section structure, using the lowest section titles as basic unit for chunking documents. Therefore, figures and tables in the same section will not be separated, which may result in larger chunk sizes.
       </p>`,

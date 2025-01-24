@@ -47,6 +47,7 @@ RAGFlow offers multiple chunking template to facilitate chunking files of differ
 | Table        |                                                              | EXCEL, CSV/TXT                                       |
 | Paper        |                                                              | PDF                                                  |
 | Book         |                                                              | DOCX, PDF, TXT                                       |
+| Contracts    |                                                              | DOCX, PDF, TXT                                       |
 | Laws         |                                                              | DOCX, PDF, TXT                                       |
 | Presentation |                                                              | PDF, PPTX                                            |
 | Picture      |                                                              | JPEG, JPG, PNG, TIF, GIF                             |

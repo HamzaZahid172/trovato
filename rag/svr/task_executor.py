@@ -53,7 +53,7 @@ from api import settings
 from api.versions import get_ragflow_version
 from api.db.db_models import close_connection
 from rag.app import laws, paper, presentation, manual, qa, table, book, resume, picture, naive, one, audio, \
-    knowledge_graph, email
+    knowledge_graph, email, contracts
 from rag.nlp import search, rag_tokenizer
 from rag.raptor import RecursiveAbstractiveProcessing4TreeOrganizedRetrieval as Raptor
 from rag.settings import DOC_MAXIMUM_SIZE, SVR_QUEUE_NAME, print_rag_settings
@@ -70,6 +70,7 @@ FACTORY = {
     ParserType.BOOK.value: book,
     ParserType.PRESENTATION.value: presentation,
     ParserType.MANUAL.value: manual,
+    ParserType.CONTRACTS.value: contracts,
     ParserType.LAWS.value: laws,
     ParserType.QA.value: qa,
     ParserType.TABLE.value: table,

@@ -12,6 +12,7 @@ const ParserListMap = new Map([
       'manual',
       'paper',
       'book',
+      'contracts',
       'laws',
       'presentation',
       'one',
@@ -25,6 +26,7 @@ const ParserListMap = new Map([
       'naive',
       'resume',
       'book',
+      'contracts',
       'laws',
       'one',
       'qa',
@@ -47,6 +49,7 @@ const ParserListMap = new Map([
       'naive',
       'resume',
       'book',
+      'contracts',
       'laws',
       'one',
       'qa',
@@ -60,6 +63,7 @@ const ParserListMap = new Map([
       'naive',
       'resume',
       'book',
+      'contracts',
       'laws',
       'one',
       'qa',
@@ -102,7 +106,7 @@ export const useFetchParserListOnMount = (
     }
 
     return getParserList(
-      ['naive', 'resume', 'book', 'laws', 'one', 'qa', 'table'],
+      ['naive', 'resume', 'book', 'contracts', 'laws', 'one', 'qa', 'table'],
       parserList,
     );
   }, [parserList, documentExtension]);

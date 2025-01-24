@@ -360,6 +360,7 @@ def get_parser_config(chunk_method,parser_config):
                  "table":None,
                  "paper":{"raptor":{"use_raptor":False}},
                  "book":{"raptor":{"use_raptor":False}},
+                 "contracts":{"raptor":{"use_raptor":False}},
                  "laws":{"raptor":{"use_raptor":False}},
                  "presentation":{"raptor":{"use_raptor":False}},
                  "one":None,

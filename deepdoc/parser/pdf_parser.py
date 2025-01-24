@@ -91,10 +91,9 @@ class RAGFlowPdfParser:
 
     def _match_proj(self, b):
         proj_patt = [
-            r"第[零一二三四五六七八九十百]+章",
-            r"第[零一二三四五六七八九十百]+[条节]",
-            r"[零一二三四五六七八九十百]+[、是 　]",
-            r"[\(（][零一二三四五六七八九十百]+[）\)]",
+            r"chapter[0-9]",
+            r"article[0-9]",
+            r"section[0-9]",
             r"[\(（][0-9]+[）\)]",
             r"[0-9]+(、|\.[　 ]|）|\.[^0-9./a-zA-Z_%><-]{4,})",
             r"[0-9]+\.[0-9.]+(、|\.[ 　])",
@@ -552,7 +551,7 @@ class RAGFlowPdfParser:
         findit = False
         i = 0
         while i < len(self.boxes):
-            if not re.match(r"(contents|目录|目次|table of contents|致谢|acknowledge)$",
+            if not re.match(r"(contents|table of contents|schedules|exibits|acknowledge)$",
                             re.sub(r"( | |\u3000)+", "", self.boxes[i]["text"].lower())):
                 i += 1
                 continue
@@ -641,7 +640,7 @@ class RAGFlowPdfParser:
                                                                                                       "reference"]:
                 nomerge_lout_no.append(lst_lout_no)
             if self.boxes[i]["layout_type"] == "table":
-                if re.match(r"(数据|资料|图表)*来源[:： ]", self.boxes[i]["text"]):
+                if re.match(r"(data|information|charts)*source[:： ]", self.boxes[i]["text"]):
                     self.boxes.pop(i)
                     continue
                 if lout_no not in tables:
@@ -651,7 +650,7 @@ class RAGFlowPdfParser:
                 lst_lout_no = lout_no
                 continue
             if need_image and self.boxes[i]["layout_type"] == "figure":
-                if re.match(r"(数据|资料|图表)*来源[:： ]", self.boxes[i]["text"]):
+                if re.match(r"(data|information|charts)*source[:： ]", self.boxes[i]["text"]):
                     self.boxes.pop(i)
                     continue
                 if lout_no not in figures:
@@ -822,18 +821,17 @@ class RAGFlowPdfParser:
         if re.match(r"[0-9 ().,%%+/-]+$", line):
             return False
         for p, j in [
-            (r"第[零一二三四五六七八九十百]+章", 1),
-            (r"第[零一二三四五六七八九十百]+[条节]", 2),
-            (r"[零一二三四五六七八九十百]+[、 　]", 3),
-            (r"[\(（][零一二三四五六七八九十百]+[）\)]", 4),
-            (r"[0-9]+(、|\.[　 ]|\.[^0-9])", 5),
-            (r"[0-9]+\.[0-9]+(、|[. 　]|[^0-9])", 6),
-            (r"[0-9]+\.[0-9]+\.[0-9]+(、|[ 　]|[^0-9])", 7),
-            (r"[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+(、|[ 　]|[^0-9])", 8),
-            (r".{,48}[：:?？]$", 9),
-            (r"[0-9]+）", 10),
-            (r"[\(（][0-9]+[）\)]", 11),
-            (r"[零一二三四五六七八九十百]+是", 12),
+            (r"chapter[0-9]", 1),
+            (r"article[0-9]", 2),
+            (r"section[0-9]", 3),
+            (r"[0-9]+[, ]", 4),
+            (r"[\(（][0-9]+[）\)]", 5),
+            (r"[0-9]+(、|\.[　 ]|\.[^0-9])", 6),
+            (r"[0-9]+\.[0-9]+(、|[. 　]|[^0-9])", 7),
+            (r"[0-9]+\.[0-9]+\.[0-9]+(、|[ 　]|[^0-9])", 8),
+            (r"[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+(、|[ 　]|[^0-9])", 9),
+            (r".{,48}[：:?？]$", 10),
+            (r"[0-9]+）", 11),
             (r"[⚫•➢✓]", 12)
         ]:
             if re.match(p, line):
