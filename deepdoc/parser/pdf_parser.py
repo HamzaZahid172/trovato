@@ -413,7 +413,8 @@ class RAGFlowPdfParser:
         find_it = False
         i = 0
         while i < len(self.boxes):
-            if not re.match(r"(contents|table of contents|schedules|exibits|acknowledge)$", re.sub(r"( | |\u3000)+", "", self.boxes[i]["text"].lower())):
+            if not re.match(r"(contents|table of contents|schedules|exibits|acknowledge)$",
+                            re.sub(r"( | |\u3000)+", "", self.boxes[i]["text"].lower())):
                 i += 1
                 continue
             find_it = True
