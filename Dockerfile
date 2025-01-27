@@ -157,7 +157,7 @@ RUN version_info=$(git describe --tags --match=v* --first-parent --always); \
     else \
         version_info="$version_info full"; \
     fi; \
-    echo "RAGFlow version: $version_info"; \
+    echo "Trovato version: $version_info"; \
     echo $version_info > /ragflow/VERSION
 
 # production stage

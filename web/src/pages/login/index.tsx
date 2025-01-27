@@ -34,7 +34,7 @@ const Login = () => {
 
       if (title === 'login') {
         const code = await login({
-          email: `${params.email}`.trim(),
+          email: params.email.trim(),
           password: rsaPassWord,
         });
         if (code === 0) {
@@ -54,14 +54,21 @@ const Login = () => {
       console.log('Failed:', errorInfo);
     }
   };
-  const formItemLayout = {
-    labelCol: { span: 6 },
-    // wrapperCol: { span: 8 },
+
+  const toMicrosoftOAuth = () => {
+    const clientId = 'YOUR_MICROSOFT_APP_CLIENT_ID';
+    const redirectUri = 'YOUR_REDIRECT_URI';
+    const tenantId = 'YOUR_TENANT_ID';
+    const authorizationUrl = `https://login.microsoftonline.com/${tenantId}/oauth2/v2.0/authorize`;
+    const scope = 'openid profile email';
+
+    window.location.href = `${authorizationUrl}?client_id=${clientId}&response_type=code&redirect_uri=${encodeURIComponent(
+      redirectUri
+    )}&response_mode=query&scope=${encodeURIComponent(scope)}`;
   };
 
-  const toGoogle = () => {
-    window.location.href =
-      'https://github.com/login/oauth/authorize?scope=user:email&client_id=302129228f0d96055bee';
+  const formItemLayout = {
+    labelCol: { span: 6 },
   };
 
   return (
@@ -146,38 +153,20 @@ const Login = () => {
               {title === 'login' ? t('login') : t('continue')}
             </Button>
             {title === 'login' && (
-              <>
-                {/* <Button
-                  block
-                  size="large"
-                  onClick={toGoogle}
-                  style={{ marginTop: 15 }}
-                >
-                  <div>
-                    <Icon
-                      icon="local:google"
-                      style={{ verticalAlign: 'middle', marginRight: 5 }}
-                    />
-                    Sign in with Google
-                  </div>
-                </Button> */}
-                {location.host === Domain && (
-                  <Button
-                    block
-                    size="large"
-                    onClick={toGoogle}
-                    style={{ marginTop: 15 }}
-                  >
-                    <div className="flex items-center">
-                      <Icon
-                        icon="local:github"
-                        style={{ verticalAlign: 'middle', marginRight: 5 }}
-                      />
-                      Sign in with Github
-                    </div>
-                  </Button>
-                )}
-              </>
+              <Button
+                block
+                size="large"
+                onClick={toMicrosoftOAuth}
+                style={{ marginTop: 15 }}
+              >
+                <div>
+                  <Icon
+                    icon="local:microsoft"
+                    style={{ verticalAlign: 'middle', marginRight: 5 }}
+                  />
+                  Sign in with Microsoft
+                </div>
+              </Button>
             )}
           </Form>
         </div>

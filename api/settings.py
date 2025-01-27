@@ -66,7 +66,7 @@ def init_settings():
     DATABASE_TYPE = os.getenv("DB_TYPE", 'mysql')
     DATABASE = decrypt_database_config(name=DATABASE_TYPE)
     LLM = get_base_config("user_default_llm", {})
-    LLM_FACTORY = LLM.get("factory", "Tongyi-Qianwen")
+    LLM_FACTORY = LLM.get("factory", "OpenAI")
     LLM_BASE_URL = LLM.get("base_url")
 
     global CHAT_MDL, EMBEDDING_MDL, RERANK_MDL, ASR_MDL, IMAGE2TEXT_MDL
@@ -122,10 +122,13 @@ def init_settings():
             },
             "BAAI": {
                 "chat_model": "",
-                "embedding_model": "BAAI/bge-large-zh-v1.5",
+                "embedding_model": "BAAI/bge-large-en-v1.5",
                 "image2text_model": "",
                 "asr_model": "",
                 "rerank_model": "BAAI/bge-reranker-v2-m3",
+            },
+            "FastEmbed": {
+                "embedding_model": "BAAI/bge-large-en-v1.5",
             }
         }
 
@@ -133,7 +136,7 @@ def init_settings():
             CHAT_MDL = default_llm[LLM_FACTORY]["chat_model"] + f"@{LLM_FACTORY}"
             ASR_MDL = default_llm[LLM_FACTORY]["asr_model"] + f"@{LLM_FACTORY}"
             IMAGE2TEXT_MDL = default_llm[LLM_FACTORY]["image2text_model"] + f"@{LLM_FACTORY}"
-        EMBEDDING_MDL = default_llm["BAAI"]["embedding_model"] + "@BAAI"
+        EMBEDDING_MDL = default_llm["FastEmbed"]["embedding_model"] + "@FastEmbed"
         RERANK_MDL = default_llm["BAAI"]["rerank_model"] + "@BAAI"
 
     global API_KEY, PARSERS, HOST_IP, HOST_PORT, SECRET_KEY
