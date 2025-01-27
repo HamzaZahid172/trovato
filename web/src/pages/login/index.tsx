@@ -159,10 +159,10 @@ const Login = () => {
                 onClick={toMicrosoftOAuth}
                 style={{ marginTop: 15 }}
               >
-                <div>
+                <div style={{display: 'inline-flex'}}>
                   <Icon
                     icon="local:microsoft"
-                    style={{ verticalAlign: 'middle', marginRight: 5 }}
+                    style={{ verticalAlign: 'middle', marginRight: 5, width: 25, display: 'block' }}
                   />
                   Sign in with Microsoft
                 </div>
