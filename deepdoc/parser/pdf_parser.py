@@ -1,28 +1,13 @@
-#  Licensed under the Apache License, Version 2.0 (the "License");
-#  you may not use this file except in compliance with the License.
-#  You may obtain a copy of the License at
-#
-#      http://www.apache.org/licenses/LICENSE-2.0
-#
-#  Unless required by applicable law or agreed to in writing, software
-#  distributed under the License is distributed on an "AS IS" BASIS,
-#  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-#  See the License for the specific language governing permissions and
-#  limitations under the License.
-#
-
 import logging
 import os
 import random
-
+import re
 import xgboost as xgb
 from io import BytesIO
-import re
-import pdfplumber
 from PIL import Image
 import numpy as np
 from pypdf import PdfReader as pdf2_read
-
+import pdfplumber
 from api import settings
 from api.utils.file_utils import get_project_base_directory
 from deepdoc.vision import OCR, Recognizer, LayoutRecognizer, TableStructureRecognizer
@@ -33,61 +18,34 @@ from huggingface_hub import snapshot_download
 class RAGFlowPdfParser:
     def __init__(self):
         self.ocr = OCR()
-        if hasattr(self, "model_speciess"):
-            self.layouter = LayoutRecognizer("layout." + self.model_speciess)
-        else:
-            self.layouter = LayoutRecognizer("layout")
+        self.layouter = LayoutRecognizer("layout")
         self.tbl_det = TableStructureRecognizer()
-
         self.updown_cnt_mdl = xgb.Booster()
-        if not settings.LIGHTEN:
-            try:
-                import torch
-                if torch.cuda.is_available():
-                    self.updown_cnt_mdl.set_param({"device": "cuda"})
-            except Exception:
-                logging.exception("RAGFlowPdfParser __init__")
+        self._load_updown_cnt_model()
+        self.page_from = 0
+
+    def _load_updown_cnt_model(self):
         try:
-            model_dir = os.path.join(
-                get_project_base_directory(),
-                "rag/res/deepdoc")
-            self.updown_cnt_mdl.load_model(os.path.join(
-                model_dir, "updown_concat_xgb.model"))
+            model_dir = os.path.join(get_project_base_directory(), "rag/res/deepdoc")
+            self.updown_cnt_mdl.load_model(os.path.join(model_dir, "updown_concat_xgb.model"))
         except Exception:
             model_dir = snapshot_download(
                 repo_id="InfiniFlow/text_concat_xgb_v1.0",
                 local_dir=os.path.join(get_project_base_directory(), "rag/res/deepdoc"),
                 local_dir_use_symlinks=False)
-            self.updown_cnt_mdl.load_model(os.path.join(
-                model_dir, "updown_concat_xgb.model"))
+            self.updown_cnt_mdl.load_model(os.path.join(model_dir, "updown_concat_xgb.model"))
 
-        self.page_from = 0
-        """
-        If you have trouble downloading HuggingFace models, -_^ this might help!!
-
-        For Linux:
-        export HF_ENDPOINT=https://hf-mirror.com
-
-        For Windows:
-        Good luck
-        ^_-
-
-        """
-
-    def __char_width(self, c):
+    def _char_width(self, c):
         return (c["x1"] - c["x0"]) // max(len(c["text"]), 1)
 
-    def __height(self, c):
+    def _height(self, c):
         return c["bottom"] - c["top"]
 
     def _x_dis(self, a, b):
-        return min(abs(a["x1"] - b["x0"]), abs(a["x0"] - b["x1"]),
-                   abs(a["x0"] + a["x1"] - b["x0"] - b["x1"]) / 2)
+        return min(abs(a["x1"] - b["x0"]), abs(a["x0"] - b["x1"]), abs(a["x0"] + a["x1"] - b["x0"] - b["x1"]) / 2)
 
-    def _y_dis(
-            self, a, b):
-        return (
-                       b["top"] + b["bottom"] - a["top"] - a["bottom"]) / 2
+    def _y_dis(self, a, b):
+        return (b["top"] + b["bottom"] - a["top"] - a["bottom"]) / 2
 
     def _match_proj(self, b):
         proj_patt = [
@@ -99,19 +57,16 @@ class RAGFlowPdfParser:
             r"[0-9]+\.[0-9.]+(、|\.[ 　])",
             r"[⚫•➢①② ]",
         ]
-        return any([re.match(p, b["text"]) for p in proj_patt])
+        return any(re.match(p, b["text"]) for p in proj_patt)
 
     def _updown_concat_features(self, up, down):
-        w = max(self.__char_width(up), self.__char_width(down))
-        h = max(self.__height(up), self.__height(down))
+        w = max(self._char_width(up), self._char_width(down))
+        h = max(self._height(up), self._height(down))
         y_dis = self._y_dis(up, down)
         LEN = 6
         tks_down = rag_tokenizer.tokenize(down["text"][:LEN]).split()
         tks_up = rag_tokenizer.tokenize(up["text"][-LEN:]).split()
-        tks_all = up["text"][-LEN:].strip() \
-                  + (" " if re.match(r"[a-zA-Z0-9]+",
-                                     up["text"][-1] + down["text"][0]) else "") \
-                  + down["text"][:LEN].strip()
+        tks_all = up["text"][-LEN:].strip() + (" " if re.match(r"[a-zA-Z0-9]+", up["text"][-1] + down["text"][0]) else "") + down["text"][:LEN].strip()
         tks_all = rag_tokenizer.tokenize(tks_all).split()
         fea = [
             up.get("R", -1) == down.get("R", -1),
@@ -122,32 +77,23 @@ class RAGFlowPdfParser:
             down["layout_type"] == "text",
             up["layout_type"] == "table",
             down["layout_type"] == "table",
-            True if re.search(
-                r"([。？！；!?;+)）]|[a-z]\.)$",
-                up["text"]) else False,
-            True if re.search(r"[，：‘“、0-9（+-]$", up["text"]) else False,
-            True if re.search(
-                r"(^.?[/,?;:\]，。；：’”？！》】）-])",
-                down["text"]) else False,
-            True if re.match(r"[\(（][^\(\)（）]+[）\)]$", up["text"]) else False,
-            True if re.search(r"[，,][^。.]+$", up["text"]) else False,
-            True if re.search(r"[，,][^。.]+$", up["text"]) else False,
-            True if re.search(r"[\(（][^\)）]+$", up["text"])
-                    and re.search(r"[\)）]", down["text"]) else False,
+            re.search(r"([。？！；!?;+)）]|[a-z]\.)$", up["text"]) is not None,
+            re.search(r"[，：‘“、0-9（+-]$", up["text"]) is not None,
+            re.search(r"(^.?[/,?;:\]，。；：’”？！》】）-])", down["text"]) is not None,
+            re.match(r"[\(（][^\(\)（）]+[）\)]$", up["text"]) is not None,
+            re.search(r"[，,][^。.]+$", up["text"]) is not None,
+            re.search(r"[，,][^。.]+$", up["text"]) is not None,
+            re.search(r"[\(（][^\)）]+$", up["text"]) and re.search(r"[\)）]", down["text"]),
             self._match_proj(down),
-            True if re.match(r"[A-Z]", down["text"]) else False,
-            True if re.match(r"[A-Z]", up["text"][-1]) else False,
-            True if re.match(r"[a-z0-9]", up["text"][-1]) else False,
-            True if re.match(r"[0-9.%,-]+$", down["text"]) else False,
-            up["text"].strip()[-2:] == down["text"].strip()[-2:] if len(up["text"].strip()
-                                                                        ) > 1 and len(
-                down["text"].strip()) > 1 else False,
+            re.match(r"[A-Z]", down["text"]) is not None,
+            re.match(r"[A-Z]", up["text"][-1]) is not None,
+            re.match(r"[a-z0-9]", up["text"][-1]) is not None,
+            re.match(r"[0-9.%,-]+$", down["text"]) is not None,
+            up["text"].strip()[-2:] == down["text"].strip()[-2:] if len(up["text"].strip()) > 1 and len(down["text"].strip()) > 1 else False,
             up["x0"] > down["x1"],
-            abs(self.__height(up) - self.__height(down)) / min(self.__height(up),
-                                                               self.__height(down)),
+            abs(self._height(up) - self._height(down)) / min(self._height(up), self._height(down)),
             self._x_dis(up, down) / max(w, 0.000001),
-            (len(up["text"]) - len(down["text"])) /
-            max(len(up["text"]), len(down["text"])),
+            (len(up["text"]) - len(down["text"])) / max(len(up["text"]), len(down["text"])),
             len(tks_all) - len(tks_up) - len(tks_down),
             len(tks_down) - len(tks_up),
             tks_down[-1] == tks_up[-1] if tks_down and tks_up else False,
@@ -159,357 +105,276 @@ class RAGFlowPdfParser:
         return fea
 
     @staticmethod
-    def sort_X_by_page(arr, threashold):
-        # sort using y1 first and then x1
+    def sort_X_by_page(arr, threshold):
         arr = sorted(arr, key=lambda r: (r["page_number"], r["x0"], r["top"]))
         for i in range(len(arr) - 1):
             for j in range(i, -1, -1):
-                # restore the order using th
-                if abs(arr[j + 1]["x0"] - arr[j]["x0"]) < threashold \
-                        and arr[j + 1]["top"] < arr[j]["top"] \
-                        and arr[j + 1]["page_number"] == arr[j]["page_number"]:
-                    tmp = arr[j]
-                    arr[j] = arr[j + 1]
-                    arr[j + 1] = tmp
+                if abs(arr[j + 1]["x0"] - arr[j]["x0"]) < threshold and arr[j + 1]["top"] < arr[j]["top"] and arr[j + 1]["page_number"] == arr[j]["page_number"]:
+                    arr[j], arr[j + 1] = arr[j + 1], arr[j]
         return arr
 
     def _has_color(self, o):
         if o.get("ncs", "") == "DeviceGray":
-            if o["stroking_color"] and o["stroking_color"][0] == 1 and o["non_stroking_color"] and \
-                    o["non_stroking_color"][0] == 1:
+            if o["stroking_color"] and o["stroking_color"][0] == 1 and o["non_stroking_color"] and o["non_stroking_color"][0] == 1:
                 if re.match(r"[a-zT_\[\]\(\)-]+", o.get("text", "")):
                     return False
         return True
 
-    def _table_transformer_job(self, ZM):
+    def _table_transformer_job(self, zoom_factor):
         logging.debug("Table processing...")
-        imgs, pos = [], []
-        tbcnt = [0]
+        imgs, positions = [], []
+        table_counts = [0]
         MARGIN = 10
-        self.tb_cpns = []
+        self.table_components = []
         assert len(self.page_layout) == len(self.page_images)
-        for p, tbls in enumerate(self.page_layout):  # for page
-            tbls = [f for f in tbls if f["type"] == "table"]
-            tbcnt.append(len(tbls))
-            if not tbls:
+        for page_index, tables in enumerate(self.page_layout):
+            tables = [table for table in tables if table["type"] == "table"]
+            table_counts.append(len(tables))
+            if not tables:
                 continue
-            for tb in tbls:  # for table
-                left, top, right, bott = tb["x0"] - MARGIN, tb["top"] - MARGIN, \
-                                         tb["x1"] + MARGIN, tb["bottom"] + MARGIN
-                left *= ZM
-                top *= ZM
-                right *= ZM
-                bott *= ZM
-                pos.append((left, top))
-                imgs.append(self.page_images[p].crop((left, top, right, bott)))
+            for table in tables:
+                left, top, right, bottom = table["x0"] - MARGIN, table["top"] - MARGIN, table["x1"] + MARGIN, table["bottom"] + MARGIN
+                left *= zoom_factor
+                top *= zoom_factor
+                right *= zoom_factor
+                bottom *= zoom_factor
+                positions.append((left, top))
+                imgs.append(self.page_images[page_index].crop((left, top, right, bottom)))
 
-        assert len(self.page_images) == len(tbcnt) - 1
+        assert len(self.page_images) == len(table_counts) - 1
         if not imgs:
             return
-        recos = self.tbl_det(imgs)
-        tbcnt = np.cumsum(tbcnt)
-        for i in range(len(tbcnt) - 1):  # for page
-            pg = []
-            for j, tb_items in enumerate(
-                    recos[tbcnt[i]: tbcnt[i + 1]]):  # for table
-                poss = pos[tbcnt[i]: tbcnt[i + 1]]
-                for it in tb_items:  # for table components
-                    it["x0"] = (it["x0"] + poss[j][0])
-                    it["x1"] = (it["x1"] + poss[j][0])
-                    it["top"] = (it["top"] + poss[j][1])
-                    it["bottom"] = (it["bottom"] + poss[j][1])
-                    for n in ["x0", "x1", "top", "bottom"]:
-                        it[n] /= ZM
-                    it["top"] += self.page_cum_height[i]
-                    it["bottom"] += self.page_cum_height[i]
-                    it["pn"] = i
-                    it["layoutno"] = j
-                    pg.append(it)
-            self.tb_cpns.extend(pg)
+        recognitions = self.tbl_det(imgs)
+        table_counts = np.cumsum(table_counts)
+        for i in range(len(table_counts) - 1):
+            page_tables = []
+            for j, table_items in enumerate(recognitions[table_counts[i]: table_counts[i + 1]]):
+                positions_page = positions[table_counts[i]: table_counts[i + 1]]
+                for item in table_items:
+                    item["x0"] = (item["x0"] + positions_page[j][0])
+                    item["x1"] = (item["x1"] + positions_page[j][0])
+                    item["top"] = (item["top"] + positions_page[j][1])
+                    item["bottom"] = (item["bottom"] + positions_page[j][1])
+                    for dimension in ["x0", "x1", "top", "bottom"]:
+                        item[dimension] /= zoom_factor
+                    item["top"] += self.page_cum_height[i]
+                    item["bottom"] += self.page_cum_height[i]
+                    item["pn"] = i
+                    item["layoutno"] = j
+                    page_tables.append(item)
+            self.table_components.extend(page_tables)
 
-        def gather(kwd, fzy=10, ption=0.6):
-            eles = Recognizer.sort_Y_firstly(
-                [r for r in self.tb_cpns if re.match(kwd, r["label"])], fzy)
-            eles = Recognizer.layouts_cleanup(self.boxes, eles, 5, ption)
-            return Recognizer.sort_Y_firstly(eles, 0)
+        def gather(keyword, fuzzy=10, proportion=0.6):
+            elements = Recognizer.sort_Y_firstly([r for r in self.table_components if re.match(keyword, r["label"])], fuzzy)
+            elements = Recognizer.layouts_cleanup(self.boxes, elements, 5, proportion)
+            return Recognizer.sort_Y_firstly(elements, 0)
 
-        # add R,H,C,SP tag to boxes within table layout
         headers = gather(r".*header$")
         rows = gather(r".* (row|header)")
         spans = gather(r".*spanning")
-        clmns = sorted([r for r in self.tb_cpns if re.match(
-            r"table column$", r["label"])], key=lambda x: (x["pn"], x["layoutno"], x["x0"]))
-        clmns = Recognizer.layouts_cleanup(self.boxes, clmns, 5, 0.5)
-        for b in self.boxes:
-            if b.get("layout_type", "") != "table":
+        columns = sorted([r for r in self.table_components if re.match(r"table column$", r["label"])], key=lambda x: (x["pn"], x["layoutno"], x["x0"]))
+        columns = Recognizer.layouts_cleanup(self.boxes, columns, 5, 0.5)
+        for box in self.boxes:
+            if box.get("layout_type", "") != "table":
                 continue
-            ii = Recognizer.find_overlapped_with_threashold(b, rows, thr=0.3)
-            if ii is not None:
-                b["R"] = ii
-                b["R_top"] = rows[ii]["top"]
-                b["R_bott"] = rows[ii]["bottom"]
+            row_index = Recognizer.find_overlapped_with_threshold(box, rows, threshold=0.3)
+            if row_index is not None:
+                box["R"] = row_index
+                box["R_top"] = rows[row_index]["top"]
+                box["R_bottom"] = rows[row_index]["bottom"]
 
-            ii = Recognizer.find_overlapped_with_threashold(
-                b, headers, thr=0.3)
-            if ii is not None:
-                b["H_top"] = headers[ii]["top"]
-                b["H_bott"] = headers[ii]["bottom"]
-                b["H_left"] = headers[ii]["x0"]
-                b["H_right"] = headers[ii]["x1"]
-                b["H"] = ii
+            header_index = Recognizer.find_overlapped_with_threshold(box, headers, threshold=0.3)
+            if header_index is not None:
+                box["H_top"] = headers[header_index]["top"]
+                box["H_bottom"] = headers[header_index]["bottom"]
+                box["H_left"] = headers[header_index]["x0"]
+                box["H_right"] = headers[header_index]["x1"]
+                box["H"] = header_index
 
-            ii = Recognizer.find_horizontally_tightest_fit(b, clmns)
-            if ii is not None:
-                b["C"] = ii
-                b["C_left"] = clmns[ii]["x0"]
-                b["C_right"] = clmns[ii]["x1"]
+            column_index = Recognizer.find_horizontally_tightest_fit(box, columns)
+            if column_index is not None:
+                box["C"] = column_index
+                box["C_left"] = columns[column_index]["x0"]
+                box["C_right"] = columns[column_index]["x1"]
 
-            ii = Recognizer.find_overlapped_with_threashold(b, spans, thr=0.3)
-            if ii is not None:
-                b["H_top"] = spans[ii]["top"]
-                b["H_bott"] = spans[ii]["bottom"]
-                b["H_left"] = spans[ii]["x0"]
-                b["H_right"] = spans[ii]["x1"]
-                b["SP"] = ii
+            span_index = Recognizer.find_overlapped_with_threshold(box, spans, threshold=0.3)
+            if span_index is not None:
+                box["H_top"] = spans[span_index]["top"]
+                box["H_bottom"] = spans[span_index]["bottom"]
+                box["H_left"] = spans[span_index]["x0"]
+                box["H_right"] = spans[span_index]["x1"]
+                box["SP"] = span_index
 
-    def __ocr(self, pagenum, img, chars, ZM=3):
-        bxs = self.ocr.detect(np.array(img))
-        if not bxs:
+    def _ocr(self, page_number, image, characters, zoom_factor=3):
+        boxes = self.ocr.detect(np.array(image))
+        if not boxes:
             self.boxes.append([])
             return
-        bxs = [(line[0], line[1][0]) for line in bxs]
-        bxs = Recognizer.sort_Y_firstly(
-            [{"x0": b[0][0] / ZM, "x1": b[1][0] / ZM,
-              "top": b[0][1] / ZM, "text": "", "txt": t,
-              "bottom": b[-1][1] / ZM,
-              "page_number": pagenum} for b, t in bxs if b[0][0] <= b[1][0] and b[0][1] <= b[-1][1]],
+        boxes = [(line[0], line[1][0]) for line in boxes]
+        boxes = Recognizer.sort_Y_firstly(
+            [{"x0": b[0][0] / zoom_factor, "x1": b[1][0] / zoom_factor,
+              "top": b[0][1] / zoom_factor, "text": "", "txt": t,
+              "bottom": b[-1][1] / zoom_factor,
+              "page_number": page_number} for b, t in boxes if b[0][0] <= b[1][0] and b[0][1] <= b[-1][1]],
             self.mean_height[-1] / 3
         )
-        
-        # merge chars in the same rect
-        for c in Recognizer.sort_Y_firstly(
-                chars, self.mean_height[pagenum - 1] // 4):
-            ii = Recognizer.find_overlapped(c, bxs)
-            if ii is None:
-                self.lefted_chars.append(c)
+
+        for character in Recognizer.sort_Y_firstly(characters, self.mean_height[page_number - 1] // 4):
+            index = Recognizer.find_overlapped(character, boxes)
+            if index is None:
+                self.lefted_chars.append(character)
                 continue
-            ch = c["bottom"] - c["top"]
-            bh = bxs[ii]["bottom"] - bxs[ii]["top"]
-            if abs(ch - bh) / max(ch, bh) >= 0.7 and c["text"] != ' ':
-                self.lefted_chars.append(c)
+            char_height = character["bottom"] - character["top"]
+            box_height = boxes[index]["bottom"] - boxes[index]["top"]
+            if abs(char_height - box_height) / max(char_height, box_height) >= 0.7 and character["text"] != ' ':
+                self.lefted_chars.append(character)
                 continue
-            if c["text"] == " " and bxs[ii]["text"]:
-                if re.match(r"[0-9a-zA-Zа-яА-Я,.?;:!%%]", bxs[ii]["text"][-1]):
-                    bxs[ii]["text"] += " "
+            if character["text"] == " " and boxes[index]["text"]:
+                if re.match(r"[0-9a-zA-Zа-яА-Я,.?;:!%%]", boxes[index]["text"][-1]):
+                    boxes[index]["text"] += " "
             else:
-                bxs[ii]["text"] += c["text"]
+                boxes[index]["text"] += character["text"]
 
-        for b in bxs:
-            if not b["text"]:
-                left, right, top, bott = b["x0"] * ZM, b["x1"] * \
-                                         ZM, b["top"] * ZM, b["bottom"] * ZM
-                b["text"] = self.ocr.recognize(np.array(img),
-                                               np.array([[left, top], [right, top], [right, bott], [left, bott]],
-                                                        dtype=np.float32))
-            del b["txt"]
-        bxs = [b for b in bxs if b["text"]]
+        for box in boxes:
+            if not box["text"]:
+                left, right, top, bottom = box["x0"] * zoom_factor, box["x1"] * zoom_factor, box["top"] * zoom_factor, box["bottom"] * zoom_factor
+                box["text"] = self.ocr.recognize(np.array(image),
+                                               np.array([[left, top], [right, top], [right, bottom], [left, bottom]], dtype=np.float32))
+            del box["txt"]
+        boxes = [box for box in boxes if box["text"]]
         if self.mean_height[-1] == 0:
-            self.mean_height[-1] = np.median([b["bottom"] - b["top"]
-                                              for b in bxs])
-        self.boxes.append(bxs)
+            self.mean_height[-1] = np.median([box["bottom"] - box["top"] for box in boxes])
+        self.boxes.append(boxes)
 
-    def _layouts_rec(self, ZM, drop=True):
+    def _layouts_rec(self, zoom_factor, drop=True):
         assert len(self.page_images) == len(self.boxes)
-        self.boxes, self.page_layout = self.layouter(
-            self.page_images, self.boxes, ZM, drop=drop)
-        # cumlative Y
+        self.boxes, self.page_layout = self.layouter(self.page_images, self.boxes, zoom_factor, drop=drop)
         for i in range(len(self.boxes)):
-            self.boxes[i]["top"] += \
-                self.page_cum_height[self.boxes[i]["page_number"] - 1]
-            self.boxes[i]["bottom"] += \
-                self.page_cum_height[self.boxes[i]["page_number"] - 1]
+            self.boxes[i]["top"] += self.page_cum_height[self.boxes[i]["page_number"] - 1]
+            self.boxes[i]["bottom"] += self.page_cum_height[self.boxes[i]["page_number"] - 1]
 
     def _text_merge(self):
-        # merge adjusted boxes
-        bxs = self.boxes
+        boxes = self.boxes
 
-        def end_with(b, txt):
-            txt = txt.strip()
-            tt = b.get("text", "").strip()
-            return tt and tt.find(txt) == len(tt) - len(txt)
+        def end_with(box, text):
+            text = text.strip()
+            text_box = box.get("text", "").strip()
+            return text_box and text_box.find(text) == len(text_box) - len(text)
 
-        def start_with(b, txts):
-            tt = b.get("text", "").strip()
-            return tt and any([tt.find(t.strip()) == 0 for t in txts])
+        def start_with(box, texts):
+            text_box = box.get("text", "").strip()
+            return text_box and any(text_box.find(t.strip()) == 0 for t in texts)
 
-        # horizontally merge adjacent box with the same layout
         i = 0
-        while i < len(bxs) - 1:
-            b = bxs[i]
-            b_ = bxs[i + 1]
-            if b.get("layoutno", "0") != b_.get("layoutno", "1") or b.get("layout_type", "") in ["table", "figure",
-                                                                                                 "equation"]:
+        while i < len(boxes) - 1:
+            box = boxes[i]
+            next_box = boxes[i + 1]
+            if box.get("layoutno", "0") != next_box.get("layoutno", "1") or box.get("layout_type", "") in ["table", "figure", "equation"]:
                 i += 1
                 continue
-            if abs(self._y_dis(b, b_)
-                   ) < self.mean_height[bxs[i]["page_number"] - 1] / 3:
-                # merge
-                bxs[i]["x1"] = b_["x1"]
-                bxs[i]["top"] = (b["top"] + b_["top"]) / 2
-                bxs[i]["bottom"] = (b["bottom"] + b_["bottom"]) / 2
-                bxs[i]["text"] += b_["text"]
-                bxs.pop(i + 1)
+            if abs(self._y_dis(box, next_box)) < self.mean_height[boxes[i]["page_number"] - 1] / 3:
+                boxes[i]["x1"] = next_box["x1"]
+                boxes[i]["top"] = (box["top"] + next_box["top"]) / 2
+                boxes[i]["bottom"] = (box["bottom"] + next_box["bottom"]) / 2
+                boxes[i]["text"] += next_box["text"]
+                boxes.pop(i + 1)
                 continue
             i += 1
-            continue
-
-            dis_thr = 1
-            dis = b["x1"] - b_["x0"]
-            if b.get("layout_type", "") != "text" or b_.get(
-                    "layout_type", "") != "text":
-                if end_with(b, "，") or start_with(b_, "（，"):
-                    dis_thr = -8
-                else:
-                    i += 1
-                    continue
-
-            if abs(self._y_dis(b, b_)) < self.mean_height[bxs[i]["page_number"] - 1] / 5 \
-                    and dis >= dis_thr and b["x1"] < b_["x1"]:
-                # merge
-                bxs[i]["x1"] = b_["x1"]
-                bxs[i]["top"] = (b["top"] + b_["top"]) / 2
-                bxs[i]["bottom"] = (b["bottom"] + b_["bottom"]) / 2
-                bxs[i]["text"] += b_["text"]
-                bxs.pop(i + 1)
-                continue
-            i += 1
-        self.boxes = bxs
 
     def _naive_vertical_merge(self):
-        bxs = Recognizer.sort_Y_firstly(
-            self.boxes, np.median(
-                self.mean_height) / 3)
+        boxes = Recognizer.sort_Y_firstly(self.boxes, np.median(self.mean_height) / 3)
         i = 0
-        while i + 1 < len(bxs):
-            b = bxs[i]
-            b_ = bxs[i + 1]
-            if b["page_number"] < b_["page_number"] and re.match(
-                    r"[0-9  •一—-]+$", b["text"]):
-                bxs.pop(i)
+        while i + 1 < len(boxes):
+            box = boxes[i]
+            next_box = boxes[i + 1]
+            if box["page_number"] < next_box["page_number"] and re.match(r"[0-9  •一—-]+$", box["text"]):
+                boxes.pop(i)
                 continue
-            if not b["text"].strip():
-                bxs.pop(i)
+            if not box["text"].strip():
+                boxes.pop(i)
                 continue
-            concatting_feats = [
-                b["text"].strip()[-1] in ",;:'\"，、‘“；：-",
-                len(b["text"].strip()) > 1 and b["text"].strip(
-                )[-2] in ",;:'\"，‘“、；：",
-                b_["text"].strip() and b_["text"].strip()[0] in "。；？！?”）),，、：",
+            concatting_features = [
+                box["text"].strip()[-1] in ",;:'\"，、‘“；：-",
+                len(box["text"].strip()) > 1 and box["text"].strip()[-2] in ",;:'\"，‘“、；：",
+                next_box["text"].strip() and next_box["text"].strip()[0] in "。；？！?”）),，、：",
             ]
-            # features for not concating
             feats = [
-                b.get("layoutno", 0) != b_.get("layoutno", 0),
-                b["text"].strip()[-1] in "。？！?",
-                self.is_english and b["text"].strip()[-1] in ".!?",
-                b["page_number"] == b_["page_number"] and b_["top"] -
-                b["bottom"] > self.mean_height[b["page_number"] - 1] * 1.5,
-                b["page_number"] < b_["page_number"] and abs(
-                    b["x0"] - b_["x0"]) > self.mean_width[b["page_number"] - 1] * 4,
+                box.get("layoutno", 0) != next_box.get("layoutno", 0),
+                box["text"].strip()[-1] in "。？！?",
+                self.is_english and box["text"].strip()[-1] in ".!?",
+                box["page_number"] == next_box["page_number"] and next_box["top"] - box["bottom"] > self.mean_height[box["page_number"] - 1] * 1.5,
+                box["page_number"] < next_box["page_number"] and abs(box["x0"] - next_box["x0"]) > self.mean_width[box["page_number"] - 1] * 4,
             ]
-            # split features
-            detach_feats = [b["x1"] < b_["x0"],
-                            b["x0"] > b_["x1"]]
-            if (any(feats) and not any(concatting_feats)) or any(detach_feats):
-                logging.debug("{} {} {} {}".format(
-                    b["text"],
-                    b_["text"],
-                    any(feats),
-                    any(concatting_feats),
-                    ))
+            detach_features = [box["x1"] < next_box["x0"], box["x0"] > next_box["x1"]]
+            if (any(feats) and not any(concatting_features)) or any(detach_features):
                 i += 1
                 continue
-            # merge up and down
-            b["bottom"] = b_["bottom"]
-            b["text"] += b_["text"]
-            b["x0"] = min(b["x0"], b_["x0"])
-            b["x1"] = max(b["x1"], b_["x1"])
-            bxs.pop(i + 1)
-        self.boxes = bxs
+            box["bottom"] = next_box["bottom"]
+            box["text"] += next_box["text"]
+            box["x0"] = min(box["x0"], next_box["x0"])
+            box["x1"] = max(box["x1"], next_box["x1"])
+            boxes.pop(i + 1)
+        self.boxes = boxes
 
     def _concat_downward(self, concat_between_pages=True):
-        # count boxes in the same row as a feature
         for i in range(len(self.boxes)):
-            mh = self.mean_height[self.boxes[i]["page_number"] - 1]
+            mean_height = self.mean_height[self.boxes[i]["page_number"] - 1]
             self.boxes[i]["in_row"] = 0
             j = max(0, i - 12)
             while j < min(i + 12, len(self.boxes)):
                 if j == i:
                     j += 1
                     continue
-                ydis = self._y_dis(self.boxes[i], self.boxes[j]) / mh
-                if abs(ydis) < 1:
+                y_dis = self._y_dis(self.boxes[i], self.boxes[j]) / mean_height
+                if abs(y_dis) < 1:
                     self.boxes[i]["in_row"] += 1
-                elif ydis > 0:
+                elif y_dis > 0:
                     break
                 j += 1
 
-        # concat between rows
         boxes = deepcopy(self.boxes)
         blocks = []
         while boxes:
             chunks = []
 
-            def dfs(up, dp):
+            def dfs(up, down_index):
                 chunks.append(up)
-                i = dp
-                while i < min(dp + 12, len(boxes)):
-                    ydis = self._y_dis(up, boxes[i])
-                    smpg = up["page_number"] == boxes[i]["page_number"]
-                    mh = self.mean_height[up["page_number"] - 1]
-                    mw = self.mean_width[up["page_number"] - 1]
-                    if smpg and ydis > mh * 4:
+                i = down_index
+                while i < min(down_index + 12, len(boxes)):
+                    y_dis = self._y_dis(up, boxes[i])
+                    same_page = up["page_number"] == boxes[i]["page_number"]
+                    mean_height = self.mean_height[up["page_number"] - 1]
+                    mean_width = self.mean_width[up["page_number"] - 1]
+                    if same_page and y_dis > mean_height * 4:
                         break
-                    if not smpg and ydis > mh * 16:
+                    if not same_page and y_dis > mean_height * 16:
                         break
-                    down = boxes[i]
-                    if not concat_between_pages and down["page_number"] > up["page_number"]:
+                    if not concat_between_pages and boxes[i]["page_number"] > up["page_number"]:
                         break
-
-                    if up.get("R", "") != down.get(
-                            "R", "") and up["text"][-1] != "，":
+                    if up.get("R", "") != boxes[i].get("R", "") and up["text"][-1] != "，":
                         i += 1
                         continue
-
-                    if re.match(r"[0-9]{2,3}/[0-9]{3}$", up["text"]) \
-                            or re.match(r"[0-9]{2,3}/[0-9]{3}$", down["text"]) \
-                            or not down["text"].strip():
+                    if re.match(r"[0-9]{2,3}/[0-9]{3}$", up["text"]) or re.match(r"[0-9]{2,3}/[0-9]{3}$", boxes[i]["text"]) or not boxes[i]["text"].strip():
                         i += 1
                         continue
-
-                    if not down["text"].strip() or not up["text"].strip():
+                    if not boxes[i]["text"].strip() or not up["text"].strip():
                         i += 1
                         continue
-
-                    if up["x1"] < down["x0"] - 10 * \
-                            mw or up["x0"] > down["x1"] + 10 * mw:
+                    if up["x1"] < boxes[i]["x0"] - 10 * mean_width or up["x0"] > boxes[i]["x1"] + 10 * mean_width:
                         i += 1
                         continue
-
-                    if i - dp < 5 and up.get("layout_type") == "text":
-                        if up.get("layoutno", "1") == down.get(
-                                "layoutno", "2"):
-                            dfs(down, i + 1)
+                    if i - down_index < 5 and up.get("layout_type") == "text":
+                        if up.get("layoutno", "1") == boxes[i].get("layoutno", "2"):
+                            dfs(boxes[i], i + 1)
                             boxes.pop(i)
                             return
                         i += 1
                         continue
-
-                    fea = self._updown_concat_features(up, down)
-                    if self.updown_cnt_mdl.predict(
-                            xgb.DMatrix([fea]))[0] <= 0.5:
+                    features = self._updown_concat_features(up, boxes[i])
+                    if self.updown_cnt_mdl.predict(xgb.DMatrix([features]))[0] <= 0.5:
                         i += 1
                         continue
-                    dfs(down, i + 1)
+                    dfs(boxes[i], i + 1)
                     boxes.pop(i)
                     return
 
@@ -518,58 +383,50 @@ class RAGFlowPdfParser:
             if chunks:
                 blocks.append(chunks)
 
-        # concat within each block
         boxes = []
-        for b in blocks:
-            if len(b) == 1:
-                boxes.append(b[0])
+        for block in blocks:
+            if len(block) == 1:
+                boxes.append(block[0])
                 continue
-            t = b[0]
-            for c in b[1:]:
-                t["text"] = t["text"].strip()
-                c["text"] = c["text"].strip()
-                if not c["text"]:
+            text = block[0]
+            for chunk in block[1:]:
+                text["text"] = text["text"].strip()
+                chunk["text"] = chunk["text"].strip()
+                if not chunk["text"]:
                     continue
-                if t["text"] and re.match(
-                        r"[0-9\.a-zA-Z]+$", t["text"][-1] + c["text"][-1]):
-                    t["text"] += " "
-                t["text"] += c["text"]
-                t["x0"] = min(t["x0"], c["x0"])
-                t["x1"] = max(t["x1"], c["x1"])
-                t["page_number"] = min(t["page_number"], c["page_number"])
-                t["bottom"] = c["bottom"]
-                if not t["layout_type"] \
-                        and c["layout_type"]:
-                    t["layout_type"] = c["layout_type"]
-            boxes.append(t)
+                if text["text"] and re.match(r"[0-9\.a-zA-Z]+$", text["text"][-1] + chunk["text"][-1]):
+                    text["text"] += " "
+                text["text"] += chunk["text"]
+                text["x0"] = min(text["x0"], chunk["x0"])
+                text["x1"] = max(text["x1"], chunk["x1"])
+                text["page_number"] = min(text["page_number"], chunk["page_number"])
+                text["bottom"] = chunk["bottom"]
+                if not text["layout_type"] and chunk["layout_type"]:
+                    text["layout_type"] = chunk["layout_type"]
+            boxes.append(text)
 
         self.boxes = Recognizer.sort_Y_firstly(boxes, 0)
 
     def _filter_forpages(self):
         if not self.boxes:
             return
-        findit = False
+        find_it = False
         i = 0
         while i < len(self.boxes):
-            if not re.match(r"(contents|table of contents|schedules|exibits|acknowledge)$",
-                            re.sub(r"( | |\u3000)+", "", self.boxes[i]["text"].lower())):
+            if not re.match(r"(contents|table of contents|schedules|exibits|acknowledge)$", re.sub(r"( | |\u3000)+", "", self.boxes[i]["text"].lower())):
                 i += 1
                 continue
-            findit = True
-            eng = re.match(
-                r"[0-9a-zA-Z :'.-]{5,}",
-                self.boxes[i]["text"].strip())
+            find_it = True
+            eng = re.match(r"[0-9a-zA-Z :'.-]{5,}", self.boxes[i]["text"].strip())
             self.boxes.pop(i)
             if i >= len(self.boxes):
                 break
-            prefix = self.boxes[i]["text"].strip()[:3] if not eng else " ".join(
-                self.boxes[i]["text"].strip().split()[:2])
+            prefix = self.boxes[i]["text"].strip()[:3] if not eng else " ".join(self.boxes[i]["text"].strip().split()[:2])
             while not prefix:
                 self.boxes.pop(i)
                 if i >= len(self.boxes):
                     break
-                prefix = self.boxes[i]["text"].strip()[:3] if not eng else " ".join(
-                    self.boxes[i]["text"].strip().split()[:2])
+                prefix = self.boxes[i]["text"].strip()[:3] if not eng else " ".join(self.boxes[i]["text"].strip().split()[:2])
             self.boxes.pop(i)
             if i >= len(self.boxes) or not prefix:
                 break
@@ -579,14 +436,14 @@ class RAGFlowPdfParser:
                 for k in range(i, j):
                     self.boxes.pop(i)
                 break
-        if findit:
+        if find_it:
             return
 
         page_dirty = [0] * len(self.page_images)
-        for b in self.boxes:
-            if re.search(r"(··|··|··)", b["text"]):
-                page_dirty[b["page_number"] - 1] += 1
-        page_dirty = set([i + 1 for i, t in enumerate(page_dirty) if t > 3])
+        for box in self.boxes:
+            if re.search(r"(··|··|··)", box["text"]):
+                page_dirty[box["page_number"] - 1] += 1
+        page_dirty = set([i + 1 for i, count in enumerate(page_dirty) if count > 3])
         if not page_dirty:
             return
         i = 0
@@ -599,86 +456,74 @@ class RAGFlowPdfParser:
     def _merge_with_same_bullet(self):
         i = 0
         while i + 1 < len(self.boxes):
-            b = self.boxes[i]
-            b_ = self.boxes[i + 1]
-            if not b["text"].strip():
+            box = self.boxes[i]
+            next_box = self.boxes[i + 1]
+            if not box["text"].strip():
                 self.boxes.pop(i)
                 continue
-            if not b_["text"].strip():
+            if not next_box["text"].strip():
                 self.boxes.pop(i + 1)
                 continue
-
-            if b["text"].strip()[0] != b_["text"].strip()[0] \
-                    or b["text"].strip()[0].lower() in set("qwertyuopasdfghjklzxcvbnm") \
-                    or rag_tokenizer.is_chinese(b["text"].strip()[0]) \
-                    or b["top"] > b_["bottom"]:
+            if box["text"].strip()[0] != next_box["text"].strip()[0] or box["text"].strip()[0].lower() in set("qwertyuopasdfghjklzxcvbnm") or rag_tokenizer.is_chinese(box["text"].strip()[0]) or box["top"] > next_box["bottom"]:
                 i += 1
                 continue
-            b_["text"] = b["text"] + "\n" + b_["text"]
-            b_["x0"] = min(b["x0"], b_["x0"])
-            b_["x1"] = max(b["x1"], b_["x1"])
-            b_["top"] = b["top"]
+            next_box["text"] = box["text"] + "\n" + next_box["text"]
+            next_box["x0"] = min(box["x0"], next_box["x0"])
+            next_box["x1"] = max(box["x1"], next_box["x1"])
+            next_box["top"] = box["top"]
             self.boxes.pop(i)
 
-    def _extract_table_figure(self, need_image, ZM,
-                              return_html, need_position):
+    def _extract_table_figure(self, need_image, zoom_factor, return_html, need_position):
         tables = {}
         figures = {}
-        # extract figure and table boxes
         i = 0
-        lst_lout_no = ""
-        nomerge_lout_no = []
+        last_layout_no = ""
+        no_merge_layout_no = []
         while i < len(self.boxes):
             if "layoutno" not in self.boxes[i]:
                 i += 1
                 continue
-            lout_no = str(self.boxes[i]["page_number"]) + \
-                      "-" + str(self.boxes[i]["layoutno"])
-            if TableStructureRecognizer.is_caption(self.boxes[i]) or self.boxes[i]["layout_type"] in ["table caption",
-                                                                                                      "title",
-                                                                                                      "figure caption",
-                                                                                                      "reference"]:
-                nomerge_lout_no.append(lst_lout_no)
+            layout_no = f"{self.boxes[i]['page_number']}-{self.boxes[i]['layoutno']}"
+            if TableStructureRecognizer.is_caption(self.boxes[i]) or self.boxes[i]["layout_type"] in ["table caption", "title", "figure caption", "reference"]:
+                no_merge_layout_no.append(last_layout_no)
             if self.boxes[i]["layout_type"] == "table":
                 if re.match(r"(data|information|charts)*source[:： ]", self.boxes[i]["text"]):
                     self.boxes.pop(i)
                     continue
-                if lout_no not in tables:
-                    tables[lout_no] = []
-                tables[lout_no].append(self.boxes[i])
+                if layout_no not in tables:
+                    tables[layout_no] = []
+                tables[layout_no].append(self.boxes[i])
                 self.boxes.pop(i)
-                lst_lout_no = lout_no
+                last_layout_no = layout_no
                 continue
             if need_image and self.boxes[i]["layout_type"] == "figure":
                 if re.match(r"(data|information|charts)*source[:： ]", self.boxes[i]["text"]):
                     self.boxes.pop(i)
                     continue
-                if lout_no not in figures:
-                    figures[lout_no] = []
-                figures[lout_no].append(self.boxes[i])
+                if layout_no not in figures:
+                    figures[layout_no] = []
+                figures[layout_no].append(self.boxes[i])
                 self.boxes.pop(i)
-                lst_lout_no = lout_no
+                last_layout_no = layout_no
                 continue
             i += 1
 
-        # merge table on different pages
-        nomerge_lout_no = set(nomerge_lout_no)
-        tbls = sorted([(k, bxs) for k, bxs in tables.items()],
-                      key=lambda x: (x[1][0]["top"], x[1][0]["x0"]))
+        no_merge_layout_no = set(no_merge_layout_no)
+        tbls = sorted([(k, bxs) for k, bxs in tables.items()], key=lambda x: (x[1][0]["top"], x[1][0]["x0"]))
 
         i = len(tbls) - 1
         while i - 1 >= 0:
             k0, bxs0 = tbls[i - 1]
             k, bxs = tbls[i]
             i -= 1
-            if k0 in nomerge_lout_no:
+            if k0 in no_merge_layout_no:
                 continue
             if bxs[0]["page_number"] == bxs0[0]["page_number"]:
                 continue
             if bxs[0]["page_number"] - bxs0[0]["page_number"] > 1:
                 continue
-            mh = self.mean_height[bxs[0]["page_number"] - 1]
-            if self._y_dis(bxs0[-1], bxs[0]) > mh * 23:
+            mean_height = self.mean_height[bxs[0]["page_number"] - 1]
+            if self._y_dis(bxs0[-1], bxs[0]) > mean_height * 23:
                 continue
             tables[k0].extend(tables[k])
             del tables[k]
@@ -686,141 +531,103 @@ class RAGFlowPdfParser:
         def x_overlapped(a, b):
             return not any([a["x1"] < b["x0"], a["x0"] > b["x1"]])
 
-        # find captions and pop out
         i = 0
         while i < len(self.boxes):
-            c = self.boxes[i]
-            # mh = self.mean_height[c["page_number"]-1]
-            if not TableStructureRecognizer.is_caption(c):
+            caption = self.boxes[i]
+            if not TableStructureRecognizer.is_caption(caption):
                 i += 1
                 continue
 
-            # find the nearest layouts
             def nearest(tbls):
-                nonlocal c
-                mink = ""
-                minv = 1000000000
+                nonlocal caption
+                min_key = ""
+                min_value = 1000000000
                 for k, bxs in tbls.items():
                     for b in bxs:
                         if b.get("layout_type", "").find("caption") >= 0:
                             continue
-                        y_dis = self._y_dis(c, b)
-                        x_dis = self._x_dis(
-                            c, b) if not x_overlapped(
-                            c, b) else 0
-                        dis = y_dis * y_dis + x_dis * x_dis
-                        if dis < minv:
-                            mink = k
-                            minv = dis
-                return mink, minv
+                        y_dis = self._y_dis(caption, b)
+                        x_dis = self._x_dis(caption, b) if not x_overlapped(caption, b) else 0
+                        distance = y_dis * y_dis + x_dis * x_dis
+                        if distance < min_value:
+                            min_key = k
+                            min_value = distance
+                return min_key, min_value
 
-            tk, tv = nearest(tables)
-            fk, fv = nearest(figures)
-            # if min(tv, fv) > 2000:
-            #    i += 1
-            #    continue
-            if tv < fv and tk:
-                tables[tk].insert(0, c)
-                logging.debug(
-                    "TABLE:" +
-                    self.boxes[i]["text"] +
-                    "; Cap: " +
-                    tk)
-            elif fk:
-                figures[fk].insert(0, c)
-                logging.debug(
-                    "FIGURE:" +
-                    self.boxes[i]["text"] +
-                    "; Cap: " +
-                    tk)
+            table_key, table_value = nearest(tables)
+            figure_key, figure_value = nearest(figures)
+            if table_value < figure_value and table_key:
+                tables[table_key].insert(0, caption)
+                logging.debug(f"TABLE: {self.boxes[i]['text']}; Cap: {table_key}")
+            elif figure_key:
+                figures[figure_key].insert(0, caption)
+                logging.debug(f"FIGURE: {self.boxes[i]['text']}; Cap: {figure_key}")
             self.boxes.pop(i)
 
-        res = []
+        results = []
         positions = []
 
-        def cropout(bxs, ltype, poss):
-            nonlocal ZM
-            pn = set([b["page_number"] - 1 for b in bxs])
-            if len(pn) < 2:
-                pn = list(pn)[0]
-                ht = self.page_cum_height[pn]
-                b = {
+        def cropout(bxs, layout_type, poss):
+            nonlocal zoom_factor
+            page_numbers = set([b["page_number"] - 1 for b in bxs])
+            if len(page_numbers) < 2:
+                page_number = list(page_numbers)[0]
+                height = self.page_cum_height[page_number]
+                bounding_box = {
                     "x0": np.min([b["x0"] for b in bxs]),
-                    "top": np.min([b["top"] for b in bxs]) - ht,
+                    "top": np.min([b["top"] for b in bxs]) - height,
                     "x1": np.max([b["x1"] for b in bxs]),
-                    "bottom": np.max([b["bottom"] for b in bxs]) - ht
+                    "bottom": np.max([b["bottom"] for b in bxs]) - height
                 }
-                louts = [layout for layout in self.page_layout[pn] if layout["type"] == ltype]
-                ii = Recognizer.find_overlapped(b, louts, naive=True)
-                if ii is not None:
-                    b = louts[ii]
+                layouts = [layout for layout in self.page_layout[page_number] if layout["type"] == layout_type]
+                index = Recognizer.find_overlapped(bounding_box, layouts, naive=True)
+                if index is not None:
+                    bounding_box = layouts[index]
                 else:
-                    logging.warning(
-                        f"Missing layout match: {pn + 1},%s" %
-                        (bxs[0].get(
-                            "layoutno", "")))
+                    logging.warning(f"Missing layout match: {page_number + 1}, {bxs[0].get('layoutno', '')}")
 
-                left, top, right, bott = b["x0"], b["top"], b["x1"], b["bottom"]
+                left, top, right, bottom = bounding_box["x0"], bounding_box["top"], bounding_box["x1"], bounding_box["bottom"]
                 if right < left:
                     right = left + 1
-                poss.append((pn + self.page_from, left, right, top, bott))
-                return self.page_images[pn] \
-                    .crop((left * ZM, top * ZM,
-                           right * ZM, bott * ZM))
-            pn = {}
-            for b in bxs:
-                p = b["page_number"] - 1
-                if p not in pn:
-                    pn[p] = []
-                pn[p].append(b)
-            pn = sorted(pn.items(), key=lambda x: x[0])
-            imgs = [cropout(arr, ltype, poss) for p, arr in pn]
-            pic = Image.new("RGB",
-                            (int(np.max([i.size[0] for i in imgs])),
-                             int(np.sum([m.size[1] for m in imgs]))),
-                            (245, 245, 245))
+                poss.append((page_number + self.page_from, left, right, top, bottom))
+                return self.page_images[page_number].crop((left * zoom_factor, top * zoom_factor, right * zoom_factor, bottom * zoom_factor))
+            page_numbers = sorted(page_numbers.items(), key=lambda x: x[0])
+            images = [cropout(arr, layout_type, poss) for page_number, arr in page_numbers]
+            image = Image.new("RGB", (int(np.max([img.size[0] for img in images])), int(np.sum([img.size[1] for img in images]))), (245, 245, 245))
             height = 0
-            for img in imgs:
-                pic.paste(img, (0, int(height)))
+            for img in images:
+                image.paste(img, (0, int(height)))
                 height += img.size[1]
-            return pic
+            return image
 
-        # crop figure out and add caption
-        for k, bxs in figures.items():
-            txt = "\n".join([b["text"] for b in bxs])
-            if not txt:
+        for key, bxs in figures.items():
+            text = "\n".join([b["text"] for b in bxs])
+            if not text:
                 continue
-
             poss = []
-            res.append(
-                (cropout(
-                    bxs,
-                    "figure", poss),
-                 [txt]))
+            results.append((cropout(bxs, "figure", poss), [text]))
             positions.append(poss)
 
-        for k, bxs in tables.items():
+        for key, bxs in tables.items():
             if not bxs:
                 continue
-            bxs = Recognizer.sort_Y_firstly(bxs, np.mean(
-                [(b["bottom"] - b["top"]) / 2 for b in bxs]))
+            bxs = Recognizer.sort_Y_firstly(bxs, np.mean([(b["bottom"] - b["top"]) / 2 for b in bxs]))
             poss = []
-            res.append((cropout(bxs, "table", poss),
-                        self.tbl_det.construct_table(bxs, html=return_html, is_english=self.is_english)))
+            results.append((cropout(bxs, "table", poss), self.tbl_det.construct_table(bxs, html=return_html, is_english=self.is_english)))
             positions.append(poss)
 
-        assert len(positions) == len(res)
+        assert len(positions) == len(results)
 
         if need_position:
-            return list(zip(res, positions))
-        return res
+            return list(zip(results, positions))
+        return results
 
     def proj_match(self, line):
         if len(line) <= 2:
             return
         if re.match(r"[0-9 ().,%%+/-]+$", line):
             return False
-        for p, j in [
+        patterns = [
             (r"chapter[0-9]", 1),
             (r"article[0-9]", 2),
             (r"section[0-9]", 3),
@@ -833,111 +640,92 @@ class RAGFlowPdfParser:
             (r".{,48}[：:?？]$", 10),
             (r"[0-9]+）", 11),
             (r"[⚫•➢✓]", 12)
-        ]:
-            if re.match(p, line):
-                return j
+        ]
+        for pattern, index in patterns:
+            if re.match(pattern, line):
+                return index
         return
 
-    def _line_tag(self, bx, ZM):
-        pn = [bx["page_number"]]
-        top = bx["top"] - self.page_cum_height[pn[0] - 1]
-        bott = bx["bottom"] - self.page_cum_height[pn[0] - 1]
-        page_images_cnt = len(self.page_images)
-        if pn[-1] - 1 >= page_images_cnt:
+    def _line_tag(self, box, zoom_factor):
+        page_numbers = [box["page_number"]]
+        top = box["top"] - self.page_cum_height[page_numbers[0] - 1]
+        bottom = box["bottom"] - self.page_cum_height[page_numbers[0] - 1]
+        page_images_count = len(self.page_images)
+        if page_numbers[-1] - 1 >= page_images_count:
             return ""
-        while bott * ZM > self.page_images[pn[-1] - 1].size[1]:
-            bott -= self.page_images[pn[-1] - 1].size[1] / ZM
-            pn.append(pn[-1] + 1)
-            if pn[-1] - 1 >= page_images_cnt:
+        while bottom * zoom_factor > self.page_images[page_numbers[-1] - 1].size[1]:
+            bottom -= self.page_images[page_numbers[-1] - 1].size[1] / zoom_factor
+            page_numbers.append(page_numbers[-1] + 1)
+            if page_numbers[-1] - 1 >= page_images_count:
                 return ""
+        return "@@{}\t{:.1f}\t{:.1f}\t{:.1f}\t{:.1f}##".format("-".join(map(str, page_numbers)), box["x0"], box["x1"], top, bottom)
 
-        return "@@{}\t{:.1f}\t{:.1f}\t{:.1f}\t{:.1f}##" \
-            .format("-".join([str(p) for p in pn]),
-                    bx["x0"], bx["x1"], top, bott)
+    def __filterout_scraps(self, boxes, zoom_factor):
+        def width(box):
+            return box["x1"] - box["x0"]
 
-    def __filterout_scraps(self, boxes, ZM):
+        def height(box):
+            return box["bottom"] - box["top"]
 
-        def width(b):
-            return b["x1"] - b["x0"]
-
-        def height(b):
-            return b["bottom"] - b["top"]
-
-        def usefull(b):
-            if b.get("layout_type"):
+        def useful(box):
+            if box.get("layout_type"):
                 return True
-            if width(
-                    b) > self.page_images[b["page_number"] - 1].size[0] / ZM / 3:
+            if width(box) > self.page_images[box["page_number"] - 1].size[0] / zoom_factor / 3:
                 return True
-            if b["bottom"] - b["top"] > self.mean_height[b["page_number"] - 1]:
+            if height(box) > self.mean_height[box["page_number"] - 1]:
                 return True
             return False
 
-        res = []
+        results = []
         while boxes:
             lines = []
             widths = []
-            pw = self.page_images[boxes[0]["page_number"] - 1].size[0] / ZM
-            mh = self.mean_height[boxes[0]["page_number"] - 1]
-            mj = self.proj_match(
-                boxes[0]["text"]) or boxes[0].get(
-                "layout_type",
-                "") == "title"
+            page_width = self.page_images[boxes[0]["page_number"] - 1].size[0] / zoom_factor
+            mean_height = self.mean_height[boxes[0]["page_number"] - 1]
+            match = self.proj_match(boxes[0]["text"]) or boxes[0].get("layout_type", "") == "title"
 
-            def dfs(line, st):
-                nonlocal mh, pw, lines, widths
+            def dfs(line, start):
+                nonlocal mean_height, page_width, lines, widths
                 lines.append(line)
                 widths.append(width(line))
-                mmj = self.proj_match(
-                    line["text"]) or line.get(
-                    "layout_type",
-                    "") == "title"
-                for i in range(st + 1, min(st + 20, len(boxes))):
-                    if (boxes[i]["page_number"] - line["page_number"]) > 0:
+                match = self.proj_match(line["text"]) or line.get("layout_type", "") == "title"
+                for i in range(start + 1, min(start + 20, len(boxes))):
+                    if boxes[i]["page_number"] - line["page_number"] > 0:
                         break
-                    if not mmj and self._y_dis(
-                            line, boxes[i]) >= 3 * mh and height(line) < 1.5 * mh:
+                    if not match and self._y_dis(line, boxes[i]) >= 3 * mean_height and height(line) < 1.5 * mean_height:
                         break
-
-                    if not usefull(boxes[i]):
+                    if not useful(boxes[i]):
                         continue
-                    if mmj or \
-                            (self._x_dis(boxes[i], line) < pw / 10): \
-                            # and abs(width(boxes[i])-width_mean)/max(width(boxes[i]),width_mean)<0.5):
-                        # concat following
+                    if match or self._x_dis(boxes[i], line) < page_width / 10:
                         dfs(boxes[i], i)
                         boxes.pop(i)
                         break
 
             try:
-                if usefull(boxes[0]):
+                if useful(boxes[0]):
                     dfs(boxes[0], 0)
                 else:
-                    logging.debug("WASTE: " + boxes[0]["text"])
+                    logging.debug(f"WASTE: {boxes[0]['text']}")
             except Exception:
                 pass
             boxes.pop(0)
-            mw = np.mean(widths)
-            if mj or mw / pw >= 0.35 or mw > 200:
-                res.append(
-                    "\n".join([c["text"] + self._line_tag(c, ZM) for c in lines]))
+            mean_width = np.mean(widths)
+            if match or mean_width / page_width >= 0.35 or mean_width > 200:
+                results.append("\n".join([box["text"] + self._line_tag(box, zoom_factor) for box in lines]))
             else:
-                logging.debug("REMOVED: " +
-                              "<<".join([c["text"] for c in lines]))
+                logging.debug(f"REMOVED: {'<<'.join(box['text'] for box in lines)}")
 
-        return "\n\n".join(res)
+        return "\n\n".join(results)
 
     @staticmethod
-    def total_page_number(fnm, binary=None):
+    def total_page_number(filename, binary=None):
         try:
-            pdf = pdfplumber.open(
-                fnm) if not binary else pdfplumber.open(BytesIO(binary))
+            pdf = pdfplumber.open(filename) if not binary else pdfplumber.open(BytesIO(binary))
             return len(pdf.pages)
         except Exception:
             logging.exception("total_page_number")
 
-    def __images__(self, fnm, zoomin=3, page_from=0,
-                   page_to=299, callback=None):
+    def __images__(self, filename, zoom_factor=3, page_from=0, page_to=299, callback=None):
         self.lefted_chars = []
         self.mean_height = []
         self.mean_width = []
@@ -947,33 +735,29 @@ class RAGFlowPdfParser:
         self.page_layout = []
         self.page_from = page_from
         try:
-            self.pdf = pdfplumber.open(fnm) if isinstance(
-                fnm, str) else pdfplumber.open(BytesIO(fnm))
-            self.page_images = [p.to_image(resolution=72 * zoomin).annotated for i, p in
-                                enumerate(self.pdf.pages[page_from:page_to])]
-            self.page_images_x2 = [p.to_image(resolution=72 * zoomin * 2).annotated for i, p in
-                                enumerate(self.pdf.pages[page_from:page_to])]
+            self.pdf = pdfplumber.open(filename) if isinstance(filename, str) else pdfplumber.open(BytesIO(filename))
+            self.page_images = [page.to_image(resolution=72 * zoom_factor).annotated for page in self.pdf.pages[page_from:page_to]]
+            self.page_images_x2 = [page.to_image(resolution=72 * zoom_factor * 2).annotated for page in self.pdf.pages[page_from:page_to]]
             try:
-                self.page_chars = [[{**c, 'top': c['top'], 'bottom': c['bottom']} for c in page.dedupe_chars().chars if self._has_color(c)] for page in self.pdf.pages[page_from:page_to]]
+                self.page_chars = [[{**char, 'top': char['top'], 'bottom': char['bottom']} for char in page.dedupe_chars().chars if self._has_color(char)] for page in self.pdf.pages[page_from:page_to]]
             except Exception as e:
                 logging.warning(f"Failed to extract characters for pages {page_from}-{page_to}: {str(e)}")
-                self.page_chars = [[] for _ in range(page_to - page_from)]  # If failed to extract, using empty list instead.
-                
+                self.page_chars = [[] for _ in range(page_to - page_from)]
             self.total_page = len(self.pdf.pages)
         except Exception:
             logging.exception("RAGFlowPdfParser __images__")
 
         self.outlines = []
         try:
-            self.pdf = pdf2_read(fnm if isinstance(fnm, str) else BytesIO(fnm))
+            self.pdf = pdf2_read(filename if isinstance(filename, str) else BytesIO(filename))
             outlines = self.pdf.outline
 
             def dfs(arr, depth):
-                for a in arr:
-                    if isinstance(a, dict):
-                        self.outlines.append((a["/Title"], depth))
+                for item in arr:
+                    if isinstance(item, dict):
+                        self.outlines.append((item["/Title"], depth))
                         continue
-                    dfs(a, depth + 1)
+                    dfs(item, depth + 1)
 
             dfs(outlines, 0)
         except Exception as e:
@@ -982,182 +766,140 @@ class RAGFlowPdfParser:
             logging.warning("Miss outlines")
 
         logging.debug("Images converted.")
-        self.is_english = [re.search(r"[a-zA-Z0-9,/¸;:'\[\]\(\)!@#$%^&*\"?<>._-]{30,}", "".join(
-            random.choices([c["text"] for c in self.page_chars[i]], k=min(100, len(self.page_chars[i]))))) for i in
-                           range(len(self.page_chars))]
-        if sum([1 if e else 0 for e in self.is_english]) > len(
-                self.page_images) / 2:
+        self.is_english = [re.search(r"[a-zA-Z0-9,/¸;:'\[\]\(\)!@#$%^&*\"?<>._-]{30,}", "".join(random.choices([char["text"] for char in self.page_chars[i]], k=min(100, len(self.page_chars[i]))))) for i in range(len(self.page_chars))]
+        if sum(1 for e in self.is_english if e) > len(self.page_images) / 2:
             self.is_english = True
         else:
             self.is_english = False
 
-        # st = timer()
-        for i, img in enumerate(self.page_images_x2):
+        for i, image in enumerate(self.page_images_x2):
             chars = self.page_chars[i] if not self.is_english else []
-            self.mean_height.append(
-                np.median(sorted([c["height"] for c in chars])) if chars else 0
-            )
-            self.mean_width.append(
-                np.median(sorted([c["width"] for c in chars])) if chars else 8
-            )
-            self.page_cum_height.append(img.size[1] / zoomin/2)
+            self.mean_height.append(np.median(sorted([char["height"] for char in chars])) if chars else 0)
+            self.mean_width.append(np.median(sorted([char["width"] for char in chars])) if chars else 8)
+            self.page_cum_height.append(image.size[1] / zoom_factor / 2)
             j = 0
             while j + 1 < len(chars):
-                if chars[j]["text"] and chars[j + 1]["text"] \
-                        and re.match(r"[0-9a-zA-Z,.:;!%]+", chars[j]["text"] + chars[j + 1]["text"]) \
-                        and chars[j + 1]["x0"] - chars[j]["x1"] >= min(chars[j + 1]["width"],
-                                                                       chars[j]["width"]) / 2:
+                if chars[j]["text"] and chars[j + 1]["text"] and re.match(r"[0-9a-zA-Z,.:;!%]+", chars[j]["text"] + chars[j + 1]["text"]) and chars[j + 1]["x0"] - chars[j]["x1"] >= min(chars[j + 1]["width"], chars[j]["width"]) / 2:
                     chars[j]["text"] += " "
                 j += 1
 
-            self.__ocr(i + 1, img, chars, zoomin*2)
+            self._ocr(i + 1, image, chars, zoom_factor * 2)
             if callback and i % 6 == 5:
                 callback(prog=(i + 1) * 0.6 / len(self.page_images), msg="")
-        # print("OCR:", timer()-st)
 
-        if not self.is_english and not any(
-                [c for c in self.page_chars]) and self.boxes:
-            bxes = [b for bxs in self.boxes for b in bxs]
-            self.is_english = re.search(r"[\na-zA-Z0-9,/¸;:'\[\]\(\)!@#$%^&*\"?<>._-]{30,}",
-                                        "".join([b["text"] for b in random.choices(bxes, k=min(30, len(bxes)))]))
+        if not self.is_english and not any([char for char in self.page_chars]) and self.boxes:
+            boxes = [box for boxes in self.boxes for box in boxes]
+            self.is_english = re.search(r"[\na-zA-Z0-9,/¸;:'\[\]\(\)!@#$%^&*\"?<>._-]{30,}", "".join(random.choices(boxes, k=min(30, len(boxes)))))
 
-        logging.debug("Is it English:", self.is_english)
+        logging.debug(f"Is it English: {self.is_english}")
 
         self.page_cum_height = np.cumsum(self.page_cum_height)
         assert len(self.page_cum_height) == len(self.page_images) + 1
-        if len(self.boxes) == 0 and zoomin < 9:
-            self.__images__(fnm, zoomin * 3, page_from, page_to, callback)
+        if len(self.boxes) == 0 and zoom_factor < 9:
+            self.__images__(filename, zoom_factor * 3, page_from, page_to, callback)
 
-    def __call__(self, fnm, need_image=True, zoomin=3, return_html=False):
-        self.__images__(fnm, zoomin)
-        self._layouts_rec(zoomin)
-        self._table_transformer_job(zoomin)
+    def __call__(self, filename, need_image=True, zoom_factor=3, return_html=False):
+        self.__images__(filename, zoom_factor)
+        self._layouts_rec(zoom_factor)
+        self._table_transformer_job(zoom_factor)
         self._text_merge()
         self._concat_downward()
         self._filter_forpages()
-        tbls = self._extract_table_figure(
-            need_image, zoomin, return_html, False)
-        return self.__filterout_scraps(deepcopy(self.boxes), zoomin), tbls
+        tables = self._extract_table_figure(need_image, zoom_factor, return_html, False)
+        return self.__filterout_scraps(deepcopy(self.boxes), zoom_factor), tables
 
-    def remove_tag(self, txt):
-        return re.sub(r"@@[\t0-9.-]+?##", "", txt)
+    def remove_tag(self, text):
+        return re.sub(r"@@[\t0-9.-]+?##", "", text)
 
-    def crop(self, text, ZM=3, need_position=False):
-        imgs = []
-        poss = []
+    def crop(self, text, zoom_factor=3, need_position=False):
+        images = []
+        positions = []
         for tag in re.findall(r"@@[0-9-]+\t[0-9.\t]+##", text):
-            pn, left, right, top, bottom = tag.strip(
-                "#").strip("@").split("\t")
-            left, right, top, bottom = float(left), float(
-                right), float(top), float(bottom)
-            poss.append(([int(p) - 1 for p in pn.split("-")],
-                         left, right, top, bottom))
-        if not poss:
+            page_numbers, left, right, top, bottom = tag.strip("#").strip("@").split("\t")
+            left, right, top, bottom = float(left), float(right), float(top), float(bottom)
+            positions.append(([int(p) - 1 for p in page_numbers.split("-")], left, right, top, bottom))
+        if not positions:
             if need_position:
                 return None, None
             return
 
-        max_width = max(
-            np.max([right - left for (_, left, right, _, _) in poss]), 6)
+        max_width = max(np.max([right - left for (_, left, right, _, _) in positions]), 6)
         GAP = 6
-        pos = poss[0]
-        poss.insert(0, ([pos[0][0]], pos[1], pos[2], max(
-            0, pos[3] - 120), max(pos[3] - GAP, 0)))
-        pos = poss[-1]
-        poss.append(([pos[0][-1]], pos[1], pos[2], min(self.page_images[pos[0][-1]].size[1] / ZM, pos[4] + GAP),
-                     min(self.page_images[pos[0][-1]].size[1] / ZM, pos[4] + 120)))
+        pos = positions[0]
+        positions.insert(0, ([pos[0][0]], pos[1], pos[2], max(0, pos[3] - 120), max(pos[3] - GAP, 0)))
+        pos = positions[-1]
+        positions.append(([pos[0][-1]], pos[1], pos[2], min(self.page_images[pos[0][-1]].size[1] / zoom_factor, pos[4] + GAP), min(self.page_images[pos[0][-1]].size[1] / zoom_factor, pos[4] + 120)))
 
-        positions = []
-        for ii, (pns, left, right, top, bottom) in enumerate(poss):
+        positions_result = []
+        for ii, (pns, left, right, top, bottom) in enumerate(positions):
             right = left + max_width
-            bottom *= ZM
+            bottom *= zoom_factor
             for pn in pns[1:]:
                 bottom += self.page_images[pn - 1].size[1]
-            imgs.append(
-                self.page_images[pns[0]].crop((left * ZM, top * ZM,
-                                               right *
-                                               ZM, min(
-                    bottom, self.page_images[pns[0]].size[1])
-                                               ))
-            )
-            if 0 < ii < len(poss) - 1:
-                positions.append((pns[0] + self.page_from, left, right, top, min(
-                    bottom, self.page_images[pns[0]].size[1]) / ZM))
+            images.append(self.page_images[pns[0]].crop((left * zoom_factor, top * zoom_factor, right * zoom_factor, min(bottom, self.page_images[pns[0]].size[1]))))
+            if 0 < ii < len(positions) - 1:
+                positions_result.append((pns[0] + self.page_from, left, right, top, min(bottom, self.page_images[pns[0]].size[1]) / zoom_factor))
             bottom -= self.page_images[pns[0]].size[1]
             for pn in pns[1:]:
-                imgs.append(
-                    self.page_images[pn].crop((left * ZM, 0,
-                                               right * ZM,
-                                               min(bottom,
-                                                   self.page_images[pn].size[1])
-                                               ))
-                )
-                if 0 < ii < len(poss) - 1:
-                    positions.append((pn + self.page_from, left, right, 0, min(
-                        bottom, self.page_images[pn].size[1]) / ZM))
+                images.append(self.page_images[pn].crop((left * zoom_factor, 0, right * zoom_factor, min(bottom, self.page_images[pn].size[1]))))
+                if 0 < ii < len(positions) - 1:
+                    positions_result.append((pn + self.page_from, left, right, 0, min(bottom, self.page_images[pn].size[1]) / zoom_factor))
                 bottom -= self.page_images[pn].size[1]
 
-        if not imgs:
+        if not images:
             if need_position:
                 return None, None
             return
+
         height = 0
-        for img in imgs:
+        for img in images:
             height += img.size[1] + GAP
         height = int(height)
-        width = int(np.max([i.size[0] for i in imgs]))
-        pic = Image.new("RGB",
-                        (width, height),
-                        (245, 245, 245))
+        width = int(np.max([img.size[0] for img in images]))
+        image = Image.new("RGB", (width, height), (245, 245, 245))
         height = 0
-        for ii, img in enumerate(imgs):
-            if ii == 0 or ii + 1 == len(imgs):
+        for ii, img in enumerate(images):
+            if ii == 0 or ii + 1 == len(images):
                 img = img.convert('RGBA')
                 overlay = Image.new('RGBA', img.size, (0, 0, 0, 0))
                 overlay.putalpha(128)
                 img = Image.alpha_composite(img, overlay).convert("RGB")
-            pic.paste(img, (0, int(height)))
+            image.paste(img, (0, int(height)))
             height += img.size[1] + GAP
 
         if need_position:
-            return pic, positions
-        return pic
+            return image, positions_result
+        return image
 
-    def get_position(self, bx, ZM):
-        poss = []
-        pn = bx["page_number"]
-        top = bx["top"] - self.page_cum_height[pn - 1]
-        bott = bx["bottom"] - self.page_cum_height[pn - 1]
-        poss.append((pn, bx["x0"], bx["x1"], top, min(
-            bott, self.page_images[pn - 1].size[1] / ZM)))
-        while bott * ZM > self.page_images[pn - 1].size[1]:
-            bott -= self.page_images[pn - 1].size[1] / ZM
+    def get_position(self, box, zoom_factor):
+        positions = []
+        page_number = box["page_number"]
+        top = box["top"] - self.page_cum_height[page_number - 1]
+        bottom = box["bottom"] - self.page_cum_height[page_number - 1]
+        positions.append((page_number, box["x0"], box["x1"], top, min(bottom, self.page_images[page_number - 1].size[1] / zoom_factor)))
+        while bottom * zoom_factor > self.page_images[page_number - 1].size[1]:
+            bottom -= self.page_images[page_number - 1].size[1] / zoom_factor
             top = 0
-            pn += 1
-            poss.append((pn, bx["x0"], bx["x1"], top, min(
-                bott, self.page_images[pn - 1].size[1] / ZM)))
-        return poss
+            page_number += 1
+            positions.append((page_number, box["x0"], box["x1"], top, min(bottom, self.page_images[page_number - 1].size[1] / zoom_factor)))
+        return positions
 
-
-class PlainParser(object):
+class PlainParser:
     def __call__(self, filename, from_page=0, to_page=100000, **kwargs):
         self.outlines = []
         lines = []
         try:
-            self.pdf = pdf2_read(
-                filename if isinstance(
-                    filename, str) else BytesIO(filename))
+            self.pdf = pdf2_read(filename if isinstance(filename, str) else BytesIO(filename))
             for page in self.pdf.pages[from_page:to_page]:
-                lines.extend([t for t in page.extract_text().split("\n")])
-
+                lines.extend([text for text in page.extract_text().split("\n") if text.strip()])
             outlines = self.pdf.outline
 
             def dfs(arr, depth):
-                for a in arr:
-                    if isinstance(a, dict):
-                        self.outlines.append((a["/Title"], depth))
+                for item in arr:
+                    if isinstance(item, dict):
+                        self.outlines.append((item["/Title"], depth))
                         continue
-                    dfs(a, depth + 1)
+                    dfs(item, depth + 1)
 
             dfs(outlines, 0)
         except Exception:
@@ -1173,7 +915,6 @@ class PlainParser(object):
     @staticmethod
     def remove_tag(txt):
         raise NotImplementedError
-
 
 if __name__ == "__main__":
     pass
