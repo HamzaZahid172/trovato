@@ -702,3 +702,117 @@ def set_tenant_info():
         return get_json_result(data=True)
     except Exception as e:
         return server_error_response(e)
+
+# *******************Added by Romano***********************#
+@manager.route("/azure_callback", methods=["GET"])  # noqa: F821
+def azure_callback():
+    """
+    Microsoft Azure OAuth callback endpoint.
+    ---
+    tags:
+      - OAuth
+    parameters:
+      - in: query
+        name: code
+        type: string
+        required: true
+        description: Authorization code from Microsoft Azure.
+    responses:
+      200:
+        description: Authentication successful.
+        schema:
+          type: object
+    """
+    import requests
+
+    # Exchange the authorization code for an access token
+    token_url = settings.AZURE_OAUTH.get("token_url")
+    client_id = settings.AZURE_OAUTH.get("client_id")
+    client_secret = settings.AZURE_OAUTH.get("client_secret")
+    redirect_uri = settings.AZURE_OAUTH.get("redirect_uri")
+
+    res = requests.post(
+        token_url,
+        data={
+            "client_id": client_id,
+            "client_secret": client_secret,
+            "code": request.args.get("code"),
+            "redirect_uri": redirect_uri,
+            "grant_type": "authorization_code",
+        },
+        headers={"Content-Type": "application/x-www-form-urlencoded"},
+    )
+    res = res.json()
+
+    if "error" in res:
+        return redirect("/?error=%s" % res["error_description"])
+
+    session["access_token"] = res["access_token"]
+    session["access_token_from"] = "azure"
+    user_info = user_info_from_azure(session["access_token"])
+    email_address = user_info["email"]
+    users = UserService.query(email=email_address)
+    user_id = get_uuid()
+    if not users:
+        # User isn't registered, try to register
+        try:
+            try:
+                avatar = download_img(user_info.get("avatar_url", ""))
+            except Exception as e:
+                logging.exception(e)
+                avatar = ""
+            users = user_register(
+                user_id,
+                {
+                    "access_token": session["access_token"],
+                    "email": email_address,
+                    "avatar": avatar,
+                    "nickname": user_info.get("name", ""),
+                    "login_channel": "azure",
+                    "last_login_time": get_format_time(),
+                    "is_superuser": False,
+                },
+            )
+            if not users:
+                raise Exception(f"Fail to register {email_address}.")
+            if len(users) > 1:
+                raise Exception(f"Same email: {email_address} exists!")
+
+            # Try to log in
+            user = users[0]
+            login_user(user)
+            return redirect("/?auth=%s" % user.get_id())
+        except Exception as e:
+            rollback_user_registration(user_id)
+            logging.exception(e)
+            return redirect("/?error=%s" % str(e))
+
+    # User has already registered, try to log in
+    user = users[0]
+    user.access_token = get_uuid()
+    login_user(user)
+    user.save()
+    return redirect("/?auth=%s" % user.get_id())
+
+
+def user_info_from_azure(access_token):
+    """
+    Retrieve user information from Microsoft Azure using the access token.
+    """
+    import requests
+
+    user_info_url = settings.AZURE_OAUTH.get("user_info_url")
+    headers = {
+        "Authorization": f"Bearer {access_token}",
+        "Content-Type": "application/json",
+    }
+    res = requests.get(user_info_url, headers=headers)
+    user_info = res.json()
+
+    # Extract the email address from the user info
+    email = user_info.get("mail", user_info.get("userPrincipalName"))
+    if not email:
+        raise Exception("Email not found in Azure user info")
+
+    user_info["email"] = email
+    return user_info

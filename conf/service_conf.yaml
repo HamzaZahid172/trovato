@@ -50,7 +50,7 @@ redis:
 #   tenant_id: 'tenant_id'
 #   container_name: 'container_name'
 # user_default_llm:
-#   factory: 'Tongyi-Qianwen'
+#   factory: 'OpenAI'
 #   api_key: 'sk-xxxxxxxxxxxxx'
 #   base_url: ''
 # oauth:
@@ -58,6 +58,13 @@ redis:
 #     client_id: xxxxxxxxxxxxxxxxxxxxxxxxx
 #     secret_key: xxxxxxxxxxxxxxxxxxxxxxxxxxxx
 #     url: https://github.com/login/oauth/access_token
+#   azure:
+#     client_id: "YOUR_AZURE_CLIENT_ID",
+#     client_secret: "YOUR_AZURE_CLIENT_SECRET",
+#     token_url: "https://login.microsoftonline.com/YOUR_TENANT_ID/oauth2/v2.0/token",
+#     user_info_url: "https://graph.microsoft.com/v1.0/me",
+#     redirect_uri: "YOUR_REDIRECT_URI",
+#     scope: 'openid profile email';
 #   feishu:
 #     app_id: cli_xxxxxxxxxxxxxxxxxxx
 #     app_secret: xxxxxxxxxxxxxxxxxxxxxxxxxxxx
