@@ -80,15 +80,15 @@ class DefaultEmbedding(Base):
                 if not DefaultEmbedding._model or model_name != DefaultEmbedding._model_name:
                     try:
                         DefaultEmbedding._model = FlagModel(os.path.join(get_home_cache_dir(), re.sub(r"^[a-zA-Z0-9]+/", "", model_name)),
-                                                            query_instruction_for_retrieval="为这个句子生成表示以用于检索相关文章：",
+                                                            query_instruction_for_retrieval="Generate a representation for this sentence that can be used to retrieve related articles:",
                                                             use_fp16=torch.cuda.is_available())
                         DefaultEmbedding._model_name = model_name
                     except Exception:
-                        model_dir = snapshot_download(repo_id="BAAI/bge-large-zh-v1.5",
+                        model_dir = snapshot_download(repo_id="BAAI/bge-base-en-v1.5",
                                                       local_dir=os.path.join(get_home_cache_dir(), re.sub(r"^[a-zA-Z0-9]+/", "", model_name)),
                                                       local_dir_use_symlinks=False)
                         DefaultEmbedding._model = FlagModel(model_dir,
-                                                            query_instruction_for_retrieval="为这个句子生成表示以用于检索相关文章：",
+                                                            query_instruction_for_retrieval="Generate a representation for this sentence that can be used to retrieve related articles:",
                                                             use_fp16=torch.cuda.is_available())
         self._model = DefaultEmbedding._model
         self._model_name = DefaultEmbedding._model_name

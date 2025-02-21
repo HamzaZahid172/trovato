@@ -23,12 +23,9 @@ repos = [
     "InfiniFlow/text_concat_xgb_v1.0",
     "InfiniFlow/deepdoc",
     "InfiniFlow/huqie",
-    "BAAI/bge-large-zh-v1.5",
+    "BAAI/bge-base-en-v1.5",
     "BAAI/bge-reranker-v2-m3",
-    "maidalun1020/bce-embedding-base_v1",
-    "maidalun1020/bce-reranker-base_v1",
 ]
-
 def download_model(repo_id):
     local_dir = os.path.abspath(os.path.join("huggingface.co", repo_id))
     os.makedirs(local_dir, exist_ok=True)

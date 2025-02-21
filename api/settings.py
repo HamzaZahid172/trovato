@@ -122,13 +122,13 @@ def init_settings():
             },
             "BAAI": {
                 "chat_model": "",
-                "embedding_model": "BAAI/bge-large-en-v1.5",
+                "embedding_model": "",
                 "image2text_model": "",
                 "asr_model": "",
                 "rerank_model": "BAAI/bge-reranker-v2-m3",
             },
             "FastEmbed": {
-                "embedding_model": "BAAI/bge-large-en-v1.5",
+                "embedding_model": "BAAI/bge-base-en-v1.5",
             }
         }
 
