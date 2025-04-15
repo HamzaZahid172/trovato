@@ -11,7 +11,9 @@ function UserSettingLocale() {
         'Spanish',
         'zh',
         'zh-TRADITIONAL',
-        'ja',*/}
+        'ja',
+        'pt-br',
+        'German',*/}
       ]}
     />
   );

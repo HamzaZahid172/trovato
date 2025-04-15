@@ -47,6 +47,8 @@ export const LanguageList = [
   'Spanish',
   'Vietnamese',
   'Japanese',
+  'Portuguese BR',
+  'German',
 ];
 
 export const LanguageMap = {
@@ -57,6 +59,32 @@ export const LanguageMap = {
   Spanish: 'Español',
   Vietnamese: 'Tiếng việt',
   Japanese: '日本語',
+  'Portuguese BR': 'Português BR',
+  German: 'German',
+};
+
+export enum LanguageAbbreviation {
+  En = 'en',
+  Zh = 'zh',
+  ZhTraditional = 'zh-TRADITIONAL',
+  Id = 'id',
+  Ja = 'ja',
+  Es = 'es',
+  Vi = 'vi',
+  PtBr = 'pt-BR',
+  De = 'de',
+}
+
+export const LanguageAbbreviationMap = {
+  [LanguageAbbreviation.En]: 'English',
+  [LanguageAbbreviation.Zh]: '简体中文',
+  [LanguageAbbreviation.ZhTraditional]: '繁體中文',
+  [LanguageAbbreviation.Id]: 'Indonesia',
+  [LanguageAbbreviation.Es]: 'Español',
+  [LanguageAbbreviation.Vi]: 'Tiếng việt',
+  [LanguageAbbreviation.Ja]: '日本語',
+  [LanguageAbbreviation.PtBr]: 'Português BR',
+  [LanguageAbbreviation.De]: 'Deutsch',
 };
 
 export const LanguageTranslationMap = {
@@ -67,6 +95,8 @@ export const LanguageTranslationMap = {
   Spanish: 'es',
   Vietnamese: 'vi',
   Japanese: 'ja',
+  'Portuguese BR': 'pt-br',
+  German: 'de',
 };
 
 export enum FileMimeType {
@@ -113,3 +143,10 @@ export const ExceptiveType = ['xlsx', 'xls', 'pdf', 'docx', ...Images];
 
 export const SupportedPreviewDocumentTypes = [...ExceptiveType];
 //#endregion
+
+export enum Platform {
+  RAGFlow = 'RAGFlow',
+  Dify = 'Dify',
+  FastGPT = 'FastGPT',
+  Coze = 'Coze',
+}

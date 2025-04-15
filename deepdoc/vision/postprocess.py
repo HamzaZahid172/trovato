@@ -1,3 +1,6 @@
+#
+#  Copyright 2025 The InfiniFlow Authors. All Rights Reserved.
+#
 #  Licensed under the Apache License, Version 2.0 (the "License");
 #  you may not use this file except in compliance with the License.
 #  You may obtain a copy of the License at
@@ -35,7 +38,7 @@ def build_post_process(config, global_config=None):
     return module_class(**config)
 
 
-class DBPostProcess(object):
+class DBPostProcess:
     """
     The post process for Differentiable Binarization (DB).
     """
@@ -256,7 +259,7 @@ class DBPostProcess(object):
         return boxes_batch
 
 
-class BaseRecLabelDecode(object):
+class BaseRecLabelDecode:
     """ Convert between text-label and text-index """
 
     def __init__(self, character_dict_path=None, use_space_char=False):

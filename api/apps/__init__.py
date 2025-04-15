@@ -83,7 +83,7 @@ app.errorhandler(Exception)(server_error_response)
 app.config["SESSION_PERMANENT"] = False
 app.config["SESSION_TYPE"] = "filesystem"
 app.config["MAX_CONTENT_LENGTH"] = int(
-    os.environ.get("MAX_CONTENT_LENGTH", 128 * 1024 * 1024)
+    os.environ.get("MAX_CONTENT_LENGTH", 1024 * 1024 * 1024)
 )
 
 Session(app)
@@ -119,8 +119,9 @@ def register_page(page_path):
     sys.modules[module_name] = page
     spec.loader.exec_module(page)
     page_name = getattr(page, "page_name", page_name)
+    sdk_path = "\\sdk\\" if sys.platform.startswith("win") else "/sdk/"
     url_prefix = (
-        f"/api/{API_VERSION}" if "/sdk/" in path else f"/{API_VERSION}/{page_name}"
+        f"/api/{API_VERSION}" if sdk_path in path else f"/{API_VERSION}/{page_name}"
     )
 
     app.register_blueprint(page.manager, url_prefix=url_prefix)
@@ -152,8 +153,8 @@ def load_user(web_request):
                 return user[0]
             else:
                 return None
-        except Exception:
-            logging.exception("load_user got exception")
+        except Exception as e:
+            logging.warning(f"load_user got exception {e}")
             return None
     else:
         return None

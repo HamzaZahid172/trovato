@@ -16,8 +16,11 @@
 
 import os
 import re
+
 import tiktoken
+
 from api.utils.file_utils import get_project_base_directory
+
 
 def singleton(cls, *args, **kw):
     instances = {}
@@ -53,7 +56,7 @@ def findMaxDt(fnm):
         pass
     return m
 
-  
+
 def findMaxTm(fnm):
     m = 0
     try:
@@ -71,10 +74,12 @@ def findMaxTm(fnm):
         pass
     return m
 
+
 tiktoken_cache_dir = get_project_base_directory()
 os.environ["TIKTOKEN_CACHE_DIR"] = tiktoken_cache_dir
 # encoder = tiktoken.encoding_for_model("gpt-3.5-turbo")
 encoder = tiktoken.get_encoding("cl100k_base")
+
 
 def num_tokens_from_string(string: str) -> int:
     """Returns the number of tokens in a text string."""
@@ -87,3 +92,19 @@ def num_tokens_from_string(string: str) -> int:
 def truncate(string: str, max_len: int) -> str:
     """Returns truncated text if the length of text exceed max_len."""
     return encoder.decode(encoder.encode(string)[:max_len])
+
+  
+def clean_markdown_block(text):
+    text = re.sub(r'^\s*```markdown\s*\n?', '', text)
+    text = re.sub(r'\n?\s*```\s*$', '', text)
+    return text.strip()
+
+  
+def get_float(v):
+    if v is None:
+        return float('-inf')
+    try:
+        return float(v)
+    except Exception:
+        return float('-inf')
+

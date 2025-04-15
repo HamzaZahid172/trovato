@@ -15,6 +15,7 @@ export default {
       edit: 'Edit',
       upload: 'Upload',
       english: 'English',
+      portugueseBr: 'Portuguese (Brazil)',
       chinese: 'Simplified Chinese',
       traditionalChinese: 'Traditional Chinese',
       language: 'Language',
@@ -22,7 +23,7 @@ export default {
       languagePlaceholder: 'select your language',
       copy: 'Copy',
       copied: 'Copied',
-      comingSoon: 'Coming Soon',
+      comingSoon: 'Coming soon',
       download: 'Download',
       close: 'Close',
       preview: 'Preview',
@@ -33,7 +34,10 @@ export default {
       pleaseSelect: 'Please select',
       pleaseInput: 'Please input',
       submit: 'Submit',
-      embedIntoSite: 'Embed Into Site',
+      embedIntoSite: 'Embed into webpage',
+      previousPage: 'Previous',
+      nextPage: 'Next',
+      add: 'Add',
     },
     login: {
       login: 'Sign in',
@@ -83,11 +87,12 @@ export default {
       testing: 'Retrieval testing',
       files: 'files',
       configuration: 'Configuration',
+      knowledgeGraph: 'Knowledge graph',
       name: 'Name',
       namePlaceholder: 'Please input name!',
       doc: 'Docs',
       datasetDescription:
-        '📌 Please wait for your file(s) to finish parsing before starting a chat or agent session.',
+        '😉 Please wait for your files to finish parsing before starting an AI-powered chat.',
       addFile: 'Add file',
       searchFiles: 'Search your files',
       localFiles: 'Local files',
@@ -119,7 +124,7 @@ export default {
       vectorSimilarity: 'Vector Similarity',
       hits: 'Hits',
       view: 'View',
-      filesSelected: 'Files Selected',
+      filesSelected: 'Files selected',
       upload: 'Upload',
       run: 'Parse',
       runningStatus0: 'UNPARSED',
@@ -134,9 +139,9 @@ export default {
       fromMessage: 'Missing start page number',
       toPlaceholder: 'to',
       toMessage: 'Missing end page number (excluded)',
-      layoutRecognize: 'Layout recognition',
+      layoutRecognize: 'PDF parser',
       layoutRecognizeTip:
-        'Use visual models for layout analysis to better understand the structure of the document and effectively locate document titles, text blocks, images, and tables. If disabled, only the plain text in the PDF will be retrieved.',
+        'Use a visual model for PDF layout analysis to effectively locate document titles, text blocks, images, and tables. If the naive option is chosen, only the plain text in the PDF will be retrieved. Please note that this option currently works ONLY for PDF documents.',
       taskPageSize: 'Task page size',
       taskPageSizeMessage: 'Please input your task page size!',
       taskPageSizeTip: `During layout recognition, a PDF file is split into chunks and processed in parallel to increase processing speed. This parameter sets the size of each chunk. A larger chunk size reduces the likelihood of splitting continuous text between pages.`,
@@ -146,7 +151,7 @@ export default {
         'The current value must be greater than the previous to!',
       selectFiles: 'Select files',
       changeSpecificCategory: 'Change specific category',
-      uploadTitle: 'Click or drag file to this area to upload',
+      uploadTitle: 'Drag and drop your file here to upload',
       uploadDescription:
         'Support for a single or bulk file upload.',
       chunk: 'Chunk',
@@ -156,17 +161,43 @@ export default {
       rerankPlaceholder: 'Please select',
       rerankTip: `If left empty, Trovato will use a combination of weighted keyword similarity and weighted vector cosine similarity; if a rerank model is selected, a weighted reranking score will replace the weighted vector cosine similarity.`,
       topK: 'Top-K',
-      topKTip: `K chunks will be fed into rerank models.`,
-      delimiter: `Delimiter`,
+      topKTip: `Used together with the Rerank model, this setting defines the number of text chunks to be sent to the specified reranking model.`,
+      delimiter: `Delimiter for text`,
       delimiterTip:
-        'A delimiter or separator can consist of one or multiple special characters. If it is multiple characters, ensure they are enclosed in backticks( ``). For example, if you configure your delimiters like this: \n`##`;, then your texts will be separated at line breaks, double hash symbols (##), or semicolons.',
+        'A delimiter or separator can consist of one or multiple special characters. If it is multiple characters, ensure they are enclosed in backticks( ``). For example, if you configure your delimiters like this: \\n`##`;, then your texts will be separated at line breaks, double hash symbols (##), and semicolons.',
       html4excel: 'Excel to HTML',
-      html4excelTip: `When enabled, the spreadsheet will be parsed into HTML tables, and at most 256 rows for one table. Otherwise, it will be parsed into key-value pairs by row.`,
+      html4excelTip: `Use with the General chunk method. When disabled, spreadsheets (XLSX or XLS(Excel97~2003)) in the knowledge base will be parsed into key-value pairs. When enabled, they will be parsed into HTML tables, splitting every 12 rows if the original table has more than 12 rows.`,
       autoKeywords: 'Auto-keyword',
-      autoKeywordsTip: `Automatically extract N keywords for each chunk to increase their ranking for queries containing those keywords. You can check or update the added keywords for a chunk from the chunk list. Be aware that extra tokens will be consumed by the LLM specified in 'System model settings'.`,
+      autoKeywordsTip: `Automatically extract N keywords for each chunk to increase their ranking for queries containing those keywords. Be aware that extra tokens will be consumed by the chat model specified in 'System model settings'. You can check or update the added keywords for a chunk from the chunk list. `,
       autoQuestions: 'Auto-question',
       autoQuestionsTip: `Automatically extract N questions for each chunk to increase their ranking for queries containing those questions. You can check or update the added questions for a chunk from the chunk list. This feature will not disrupt the chunking process if an error occurs, except that it may add an empty result to the original chunk. Be aware that extra tokens will be consumed by the LLM specified in 'System model settings'.`,
       redo: 'Do you want to clear the existing {{chunkNum}} chunks?',
+      setMetaData: 'Set Meta Data',
+      pleaseInputJson: 'Please enter JSON',
+      documentMetaTips: `<p>The meta data is in Json format(it's not searchable). It will be added into prompt for LLM if any chunks of this document are included in the prompt.</p>
+<p>Examples:</p>
+<b>The meta data is:</b><br>
+<code>
+  {
+      "Author": "Alex Dowson",
+      "Date": "2024-11-12"
+  }
+</code><br>
+<b>The prompt will be:</b><br>
+<p>Document: the_name_of_document</p>
+<p>Author: Alex Dowson</p>
+<p>Date: 2024-11-12</p>
+<p>Relevant fragments as following:</p>
+<ul>
+<li>  Here is the chunk content....</li>
+<li>  Here is the chunk content....</li>
+</ul>
+`,
+      metaData: 'Meta data',
+      deleteDocumentConfirmContent:
+        'The document is associated with the knowledge graph. After deletion, the related node and relationship information will be deleted, but the graph will not be updated immediately. The update graph action is performed during the process of parsing the new document that carries the knowledge graph extraction task.',
+      plainText: 'Naive',
+      reRankModelWaring: 'Re-rank model is very time consuming.',
     },
     knowledgeConfiguration: {
       titleDescription:
@@ -174,26 +205,27 @@ export default {
       name: 'Knowledge base name',
       photo: 'Knowledge base photo',
       description: 'Description',
-      language: 'Language',
+      language: 'Document language',
       languageMessage: 'Please input your language!',
       languagePlaceholder: 'Please input your language!',
       permissions: 'Permissions',
       embeddingModel: 'Embedding model',
-      chunkTokenNumber: 'Chunk token number',
-      chunkTokenNumberMessage: 'Chunk token number is required',
+      chunkTokenNumber: 'Recommended chunk size',
+      chunkTokenNumberMessage: 'Chunk token number for text is required',
       embeddingModelTip:
         'The model that converts chunks into embeddings. It cannot be changed once the knowledge base has chunks. To switch to a different embedding model, you must delete all existing chunks in the knowledge base.',
       permissionsTip:
-        "If set to 'Team', all team members will be able to manage the knowledge base.",
+        "If it is set to 'Team', all your team members will be able to manage the knowledge base.",
       chunkTokenNumberTip:
-        'It sets the token threshold for a chunk. A paragraph with fewer tokens than this threshold will be combined with the following paragraph until the token count exceeds the threshold, at which point a chunk is created.',
+        'It kind of sets the token threshold for a creating a chunk. A segment with fewer tokens than this threshold will be combined with the following segments until the token count exceeds the threshold, at which point a chunk is created. No new chunk is created unless a delimiter is encountered, even if the threshold is exceeded.',
       chunkMethod: 'Chunk method',
       chunkMethodTip: 'View the tips on the right.',
       upload: 'Upload',
       english: 'English',
       chinese: 'Chinese',
-      embeddingModelPlaceholder: 'Please select a embedding model',
-      chunkMethodPlaceholder: 'Please select a chunk method',
+      portugueseBr: 'Portuguese (Brazil)',
+      embeddingModelPlaceholder: 'Please select a embedding model.',
+      chunkMethodPlaceholder: 'Please select a chunk method.',
       save: 'Save',
       me: 'Only me',
       team: 'Team',
@@ -202,7 +234,7 @@ export default {
       methodExamples: 'Examples',
       methodExamplesDescription:
         'The following screenshots are provided for clarity.',
-      dialogueExamplesTitle: 'Dialogue examples',
+      dialogueExamplesTitle: 'view',
       methodEmpty:
         'This will display a visual explanation of the knowledge base categories',
       book: `<p>Supported file formats are <b>DOCX</b>, <b>PDF</b>, <b>TXT</b>.</p><p>
@@ -220,11 +252,11 @@ export default {
       manual: `<p>Only <b>PDF</b> is supported.</p><p>
       We assume that the manual has a hierarchical section structure, using the lowest section titles as basic unit for chunking documents. Therefore, figures and tables in the same section will not be separated, which may result in larger chunk sizes.
       </p>`,
-      naive: `<p>Supported file formats are <b>DOCX, EXCEL, PPT, IMAGE, PDF, TXT, MD, JSON, EML, HTML</b>.</p>
+      naive: `<p>Supported file formats are <b>DOCX, XLSX, XLS (Excel97~2003), PPT, PDF, TXT, JPEG, JPG, PNG, TIF, GIF, CSV, JSON, EML, HTML</b>.</p>
       <p>This method chunks files using a 'naive' method: </p>
       <p>
       <li>Use vision detection model to split the texts into smaller segments.</li>
-      <li>Then, combine adjacent segments until the token count exceeds the threshold specified by 'Chunk token number', at which point a chunk is created.</li></p>`,
+      <li>Then, combine adjacent segments until the token count exceeds the threshold specified by 'Chunk token number for text', at which point a chunk is created.</li></p>`,
       paper: `<p>Only <b>PDF</b> file is supported.</p><p>
       Papers will be split by section, such as <i>abstract, 1.1, 1.2</i>. </p><p>
       This approach enables the LLM to summarize the paper more effectively and to provide more comprehensive, understandable responses. 
@@ -234,12 +266,10 @@ export default {
       <i>This chunk method is automatically applied to all uploaded PPT files, so you do not need to specify it manually.</i></p>`,
       qa: `
       <p>
-      This chunk method supports <b>EXCEL</b> and <b>CSV/TXT</b> file formats.
+      This chunk method supports <b>XLSX</b> and <b>CSV/TXT</b> file formats.
     </p>
     <li>
-      If a file is in <b>Excel</b> format, it should contain two columns
-      without headers: one for questions and the other for answers, with the
-      question column preceding the answer column. Multiple sheets are
+      If a file is in <b>XLSX</b> or <b>XLS (Excel97~2003)</b> format, it should contain two columns without headers: one for questions and the other for answers, with the question column preceding the answer column. Multiple sheets are
       acceptable, provided the columns are properly structured.
     </li>
     <li>
@@ -257,8 +287,8 @@ export default {
       Résumés of various forms are parsed and organized into structured data to facilitate candidate search for recruiters.
       </p>
       `,
-      table: `<p>Supported file formats are <b>EXCEL</b> and <b>CSV/TXT</b>.</p><p>
-      Here're some prerequisites and tips:
+      table: `<p>Supported file formats are <b>XLSX</b> and <b>CSV/TXT</b>.</p><p>
+      Here are some prerequisites and tips:
       <ul>
     <li>For CSV or TXT file, the delimiter between columns must be <em><b>TAB</b></em>.</li>
     <li>The first row must be column headers.</li>
@@ -278,7 +308,7 @@ export default {
     If the text extracted by the OCR model is deemed insufficient, a specified visual LLM will be used to provide a description of the image.
     </p>`,
       one: `
-    <p>Supported file formats are <b>DOCX, EXCEL, PDF, TXT</b>.
+    <p>Supported file formats are <b>DOCX, XLSX, XLS (Excel97~2003), PDF, TXT</b>.
     </p><p>
     This method treats each document in its entirety as a chunk.
     </p><p>
@@ -286,14 +316,24 @@ export default {
     </p>`,
       knowledgeGraph: `<p>Supported file formats are <b>DOCX, EXCEL, PPT, IMAGE, PDF, TXT, MD, JSON, EML</b>
 
-<p>This approach chunks files using the 'naive'/'General' method. It splits a document into segments and then combines adjacent segments until the token count exceeds the threshold specified by 'Chunk token number', at which point a chunk is created.</p>
+<p>This approach chunks files using the 'naive'/'General' method. It splits a document into segments and then combines adjacent segments until the token count exceeds the threshold specified by 'Chunk token number for text', at which point a chunk is created.</p>
 <p>The chunks are then fed to the LLM to extract entities and relationships for a knowledge graph and a mind map.</p>
 <p>Ensure that you set the <b>Entity types</b>.</p>`,
+      tag: `<p>A knowledge base using the 'Tag' chunk method functions as a tag set. Other knowledge bases can use it to tag their own chunks, and queries to these knowledge bases will also be tagged using this tag set.</p>
+<p>Knowledge base using 'Tag' as a chunk method will <b>NOT</b> be involved in a Retrieval-Augmented Generation (RAG) process.</p>
+<p>Each chunk in this knowledge base is an independent description-tag pair.</p>
+<p>Supported file formats include <b>XLSX</b> and <b>CSV/TXT</b>:</p>
+<p>If a file is in <b>XLSX</b> format, it should contain two columns without headers: one for tag descriptions and the other for tag names, with the Description column preceding the Tag column. Multiple sheets are acceptable, provided the columns are properly structured.</p>
+<p>If a file is in <b>CSV/TXT</b> format, it must be UTF-8 encoded with TAB as the delimiter to separate descriptions and tags.</p>
+<p>In a Tag column, <b>comma</b> is used to separate tags.</p>
+<i>Lines of texts that fail to follow the above rules will be ignored.</i>
+`,
       useRaptor: 'Use RAPTOR to enhance retrieval',
       useRaptorTip:
         'Recursive Abstractive Processing for Tree-Organized Retrieval, see https://huggingface.co/papers/2401.18059 for more information.',
       prompt: 'Prompt',
-      promptTip: 'LLM prompt used for summarization.',
+      promptTip:
+        'Use the system prompt to describe the task for the LLM, specify how it should respond, and outline other miscellaneous requirements. The system prompt is often used in conjunction with keys (variables), which serve as various data inputs for the LLM. Use a forward slash `/` or the (x) button to show the keys to use.',
       promptMessage: 'Prompt is required',
       promptText: `Please summarize the following paragraphs. Be careful with the numbers, do not make things up. Paragraphs as following:
       {cluster_content}
@@ -310,17 +350,48 @@ The above is the content you need to summarize.`,
       randomSeed: 'Random seed',
       randomSeedMessage: 'Random seed is required',
       entityTypes: 'Entity types',
-      vietnamese: 'Vietamese',
+      vietnamese: 'Vietnamese',
       pageRank: 'Page rank',
-      pageRankTip: `This increases the relevance score of the knowledge base. Its value will be added to the relevance score of all retrieved chunks from this knowledge base. Useful when you are searching within multiple knowledge bases and wanting to assign a higher pagerank score to a specific one.`,
+      pageRankTip: `You can assign a higher PageRank score to specific knowledge bases during retrieval. The corresponding score is added to the hybrid similarity scores of retrieved chunks from these knowledge bases, increasing their ranking. See https://ragflow.io/docs/dev/set_page_rank for details.`,
+      tagName: 'Tag',
+      frequency: 'Frequency',
+      searchTags: 'Search tags',
+      tagCloud: 'Cloud',
+      tagTable: 'Table',
+      tagSet: 'Tag sets',
+      tagSetTip: `
+     <p> Select one or multiple tag knowledge bases to auto-tag chunks in your knowledge base. See https://ragflow.io/docs/dev/use_tag_sets for details.</p>
+<p>The user query will also be auto-tagged.</p>
+This auto-tagging feature enhances retrieval by adding another layer of domain-specific knowledge to the existing dataset.
+<p>Difference between auto-tag and auto-keyword:</p>
+<ul>
+  <li>A tag knowledge base is a user-defined close set, whereas keywords extracted by the LLM can be regarded as an open set.</li>
+  <li>You must upload tag sets in specified formats before running the auto-tag feature.</li>
+  <li>The auto-keyword feature is dependent on the LLM and consumes a significant number of tokens.</li>
+</ul>
+      `,
+      topnTags: 'Top-N Tags',
+      tags: 'Tags',
+      addTag: 'Add tag',
+      useGraphRag: 'Extract knowledge graph',
+      useGraphRagTip:
+        'Construct a knowledge graph over file chunks of the current knowledge base to enhance multi-hop question-answering involving nested logic. See https://ragflow.io/docs/dev/construct_knowledge_graph for details.',
+      graphRagMethod: 'Method',
+      graphRagMethodTip: `Light: (Default) Use prompts provided by github.com/HKUDS/LightRAG to extract entities and relationships. This option consumes fewer tokens, less memory, and fewer computational resources.</br>
+        General: Use prompts provided by github.com/microsoft/graphrag to extract entities and relationships`,
+      resolution: 'Entity resolution',
+      resolutionTip: `An entity deduplication switch. When enabled, the LLM will combine similar entities - e.g., '2025' and 'the year of 2025', or 'IT' and 'Information Technology' - to construct a more accurate graph`,
+      community: 'Community reports generation',
+      communityTip:
+        'In a knowledge graph, a community is a cluster of entities linked by relationships. You can have the LLM generate an abstract for each community, known as a community report. See here for more information: https://www.microsoft.com/en-us/research/blog/graphrag-improving-global-search-via-dynamic-community-selection/',
     },
     chunk: {
       chunk: 'Chunk',
       bulk: 'Bulk',
       selectAll: 'Select All',
-      enabledSelected: 'Enable Selected',
-      disabledSelected: 'Disable Selected',
-      deleteSelected: 'Delete Selected',
+      enabledSelected: 'Enable selected',
+      disabledSelected: 'Disable selected',
+      deleteSelected: 'Delete selected',
       search: 'Search',
       all: 'All',
       enabled: 'Enabled',
@@ -333,12 +404,12 @@ The above is the content you need to summarize.`,
       graph: 'Knowledge graph',
       mind: 'Mind map',
       question: 'Question',
-      questionTip: `If there're given questions, the embedding of the chunk will be based on them.`,
+      questionTip: `If there are given questions, the embedding of the chunk will be based on them.`,
     },
     chat: {
       newConversation: 'New conversation',
       createAssistant: 'Create an Assistant',
-      assistantSetting: 'Assistant Setting',
+      assistantSetting: 'Assistant settings',
       promptEngine: 'Prompt Engine',
       modelSetting: 'Model Setting',
       chat: 'Chat',
@@ -347,7 +418,7 @@ The above is the content you need to summarize.`,
       sendPlaceholder: 'Message the assistant...',
       chatConfiguration: 'Chat Configuration',
       chatConfigurationDescription:
-        ' Set up a chat assistant dedicated to your selected knowledge bases here! 💕',
+        ' Set up a chat assistant for your selected datasets (knowledge bases) here! 💕',
       assistantName: 'Assistant name',
       assistantNameMessage: 'Assistant name is required',
       namePlaceholder: 'e.g. Resume Jarvis',
@@ -355,14 +426,15 @@ The above is the content you need to summarize.`,
       language: 'Language',
       emptyResponse: 'Empty response',
       emptyResponseTip: `Set this as a response if no results are retrieved from the knowledge bases for your query, or leave this field blank to allow the LLM to improvise when nothing is found.`,
-      setAnOpener: 'Set an opener',
+      emptyResponseMessage: `Empty response will be triggered when nothing relevant is retrieved from knowledge bases. You must clear the 'Empty response' field if no knowledge base is selected.`,
+      setAnOpener: 'Opening greeting',
       setAnOpenerInitial: `Hi! I'm your assistant, what can I do for you?`,
       setAnOpenerTip: 'Set an opening greeting for users.',
       knowledgeBases: 'Knowledge bases',
       knowledgeBasesMessage: 'Please select',
       knowledgeBasesTip:
         'Select the knowledge bases to associate with this chat assistant.',
-      system: 'System',
+      system: 'System prompt',
       systemInitialValue: `You are an intelligent assistant. Please summarize the content of the knowledge base to answer the question. Please list the data in the knowledge base and answer in detail. When all knowledge base content is irrelevant to the question, your answer must include the sentence "The answer you are looking for is not found in the knowledge base!" Answers need to consider chat history.
       Here is the knowledge base:
       {knowledge}
@@ -373,7 +445,7 @@ The above is the content you need to summarize.`,
       topN: 'Top N',
       topNTip: `Not all chunks with similarity score above the 'similarity threshold' will be sent to the LLM. This selects 'Top N' chunks from the retrieved ones.`,
       variable: 'Variable',
-      variableTip: `Variables can assist in developing more flexible strategies, particularly when you are using our chat assistant management APIs. These variables will be used by 'System' as part of the prompts for the LLM. The variable {knowledge} is a reserved special variable representing your selected knowledge base(s), and all variables should be enclosed in curly braces {}.`,
+      variableTip: `Used together with RAGFlow's chat assistant management APIs, variables can help develop more flexible system prompt strategies. The defined variables will be used by 'System prompt' as part of the prompts for the LLM. {knowledge} is a reserved special variable representing chunks retrieved from specified knowledge base(s), and all variables should be enclosed in curly braces {} in the 'System prompt'. See https://ragflow.io/docs/dev/set_chat_variables for details.`,
       add: 'Add',
       key: 'Key',
       optional: 'Optional',
@@ -385,7 +457,7 @@ The above is the content you need to summarize.`,
       improvise: 'Improvise',
       precise: 'Precise',
       balance: 'Balance',
-      freedomTip: `Set the freedom level to 'Precise' to strictly confine the LLM's response to your selected knowledge base(s). Choose 'Improvise' to grant the LLM greater freedom in its responses, which may lead to hallucinations. 'Balance' is an intermediate level; choose 'Balance' for more balanced responses.`,
+      freedomTip: `A shortcut to 'Temperature', 'Top P', 'Presence penalty', and 'Frequency penalty' settings, indicating the freedom level of the model. This parameter has three options: Select 'Improvise' to produce more creative responses; select 'Precise' (default) to produce more conservative responses; 'Balance' is a middle ground between 'Improvise' and 'Precise'.`,
       temperature: 'Temperature',
       temperatureMessage: 'Temperature is required',
       temperatureTip: `This parameter controls the randomness of the model's predictions. A lower temperature results in more conservative responses, while a higher temperature yields more creative and diverse responses.`,
@@ -427,8 +499,8 @@ The above is the content you need to summarize.`,
       createNewKey: 'Create new key',
       created: 'Created',
       action: 'Action',
-      embedModalTitle: 'Embed into website',
-      comingSoon: 'Coming Soon',
+      embedModalTitle: 'Embed into webpage',
+      comingSoon: 'Coming soon',
       fullScreenTitle: 'Full Embed',
       fullScreenDescription:
         'Embed the following iframe into your website at the desired location',
@@ -452,6 +524,24 @@ The above is the content you need to summarize.`,
         'This optimizes user queries using context in a multi-round conversation. When enabled, it will consume additional LLM tokens.',
       howUseId: 'How to use chat ID?',
       description: 'Description of assistant',
+      descriptionPlaceholder: 'e.g. A chat assistant for resume.',
+      useKnowledgeGraph: 'Use knowledge graph',
+      useKnowledgeGraphTip:
+        'Whether to use knowledge graph(s) in the specified knowledge base(s) during retrieval for multi-hop question answering. When enabled, this would involve iterative searches across entity, relationship, and community report chunks, greatly increasing retrieval time.',
+      keyword: 'Keyword analysis',
+      keywordTip: `Apply LLM to analyze user's questions, extract keywords which will be emphasize during the relevance computation.`,
+      languageTip:
+        'Allows sentence rewriting with the specified language or defaults to the latest question if not selected.',
+      avatarHidden: 'Hide avatar',
+      locale: 'Locale',
+      selectLanguage: 'Select a language',
+      reasoning: 'Reasoning',
+      reasoningTip:
+        'It will trigger reasoning process like Deepseek-R1/OpenAI o1. Integrates an agentic search process into the reasoning workflow, allowing models itself to dynamically retrieve external knowledge whenever they encounter uncertain information.',
+      tavilyApiKeyTip:
+        'If an API key is correctly set here, Tavily-based web searches will be used to supplement knowledge base retrieval.',
+      tavilyApiKeyMessage: 'Please enter your Tavily API Key',
+      tavilyApiKeyHelp: 'How to get it?',
     },
     setting: {
       profile: 'Profile',
@@ -508,24 +598,24 @@ The above is the content you need to summarize.`,
       baseUrlTip:
         'If your API key is from OpenAI, just ignore it. Any other intermediate providers will give this base url with the API key.',
       modify: 'Modify',
-      systemModelSettings: 'System Model Settings',
+      systemModelSettings: 'Set default models',
       chatModel: 'Chat model',
       chatModelTip:
-        'The default chat LLM all the newly created knowledgebase will use.',
+        'The default chat model for each newly created knowledge base.',
       embeddingModel: 'Embedding model',
       embeddingModelTip:
-        'The default embedding model all the newly created knowledgebase will use.',
+        'The default embedding model for each newly created knowledge base. If you cannot find an embedding model from the dropdown, check if you are using RAGFlow slim edition (which does not include embedding models) or check https://ragflow.io/docs/dev/supported_models to see if your model provider supports this model.',
       img2txtModel: 'Img2txt model',
       img2txtModelTip:
-        'The default multi-module model all the newly created knowledgebase will use. It can describe a picture or video.',
-      sequence2txtModel: 'Sequence2txt model',
+        'The default img2txt model for each newly created knowledge base. It describes a picture or video. If you cannot find a model from the dropdown, check https://ragflow.io/docs/dev/supported_models to see if your model provider supports this model.',
+      sequence2txtModel: 'Speech2txt model',
       sequence2txtModelTip:
-        'The default ASR model all the newly created knowledgebase will use. Use this model to translate voices to corresponding text.',
+        'The default ASR model for each newly created knowledgebase. Use this model to translate voices to corresponding text.',
       rerankModel: 'Rerank model',
-      rerankModelTip: `The default rerank model is used to rerank chunks retrieved by users' questions.`,
+      rerankModelTip: `The default rerank model for reranking chunks. If you cannot find a model from the dropdown, check https://ragflow.io/docs/dev/supported_models to see if your model provider supports this model.`,
       ttsModel: 'TTS Model',
       ttsModelTip:
-        'The default TTS model will be used to generate speech during conversations upon request.',
+        'The default text-to-speech model. If you cannot find a model from the dropdown, check https://ragflow.io/docs/dev/supported_models to see if your model provider supports this model.',
       workspace: 'Workspace',
       upgrade: 'Upgrade',
       addLlmTitle: 'Add LLM',
@@ -571,8 +661,8 @@ The above is the content you need to summarize.`,
       SparkModelNameMessage: 'Please select Spark model',
       addSparkAPIPassword: 'Spark APIPassword',
       SparkAPIPasswordMessage: 'please input your APIPassword',
-      addSparkAPPID: 'Spark APPID',
-      SparkAPPIDMessage: 'please input your APPID',
+      addSparkAPPID: 'Spark APP ID',
+      SparkAPPIDMessage: 'please input your APP ID',
       addSparkAPISecret: 'Spark APISecret',
       SparkAPISecretMessage: 'please input your APISecret',
       addSparkAPIKey: 'Spark APIKey',
@@ -586,7 +676,7 @@ The above is the content you need to summarize.`,
         'Please give your speech synthesis model a name',
       addFishAudioAK: 'Fish Audio API KEY',
       addFishAudioAKMessage: 'Please input your API KEY',
-      addFishAudioRefID: 'FishAudio Refrence ID',
+      addFishAudioRefID: 'FishAudio Reference ID',
       addFishAudioRefIDMessage:
         'Please input the Reference ID (leave blank to use the default model).',
       GoogleModelIDMessage: 'Please input your model ID!',
@@ -612,12 +702,25 @@ The above is the content you need to summarize.`,
       sureDelete: 'Are you sure to remove this member?',
       quit: 'Quit',
       sureQuit: 'Are you sure you want to quit the team you joined?',
+      secretKey: 'Secret key',
+      publicKey: 'Public key',
+      secretKeyMessage: 'Please enter the secret key',
+      publicKeyMessage: 'Please enter the public key',
+      hostMessage: 'Please enter the host',
+      configuration: 'Configuration',
+      langfuseDescription:
+        'Traces, evals, prompt management and metrics to debug and improve your LLM application.',
+      viewLangfuseSDocumentation: "View Langfuse's documentation",
+      view: 'View',
+      modelsToBeAddedTooltip:
+        'If your model provider is not listed but claims to be "OpenAI-compatible", select the OpenAI-API-compatible card to add the relevant model(s). ',
     },
     message: {
       registered: 'Registered!',
       logout: 'Logout',
       logged: 'Logged in',
       pleaseSelectChunk: 'Please select chunk!',
+      registerDisabled: 'User registration is disabled',
       modified: 'Modified',
       created: 'Created',
       deleted: 'Deleted',
@@ -630,7 +733,7 @@ The above is the content you need to summarize.`,
       202: 'A request has been queued in the background (asynchronous task).',
       204: 'Data deleted successfully.',
       400: 'There was an error in the request issued, and the server did not create or modify data.',
-      401: 'The user does not have permissions (wrong token, username, password).',
+      401: 'Please sign in again.',
       403: 'The user is authorized, but access is prohibited.',
       404: 'The request was made for a record that does not exist, and the server did not perform the operation.',
       406: 'The requested format is not available.',
@@ -658,8 +761,9 @@ The above is the content you need to summarize.`,
       newFolder: 'New Folder',
       file: 'File',
       uploadFile: 'Upload File',
+      parseOnCreation: 'Parse on creation',
       directory: 'Directory',
-      uploadTitle: 'Click or drag file to this area to upload',
+      uploadTitle: 'Drag and drop your file here to upload',
       uploadDescription:
         'Support for a single or bulk file upload.',
       local: 'Local uploads',
@@ -667,7 +771,7 @@ The above is the content you need to summarize.`,
       preview: 'Preview',
       fileError: 'File error',
       uploadLimit:
-        'The file size cannot exceed 10M, and the total number of files cannot exceed 128',
+        'Each file must not exceed 10MB, and the total number of files must not exceed 128.',
       destinationFolder: 'Destination folder',
     },
     flow: {
@@ -681,7 +785,7 @@ The above is the content you need to summarize.`,
       msg: 'Messages',
       messagePlaceholder: 'message',
       messageMsg: 'Please input message or delete this field.',
-      addField: 'Add field',
+      addField: 'Add option',
       addMessage: 'Add message',
       loop: 'Loop',
       loopTip:
@@ -697,13 +801,13 @@ The above is the content you need to summarize.`,
       title: 'ID:',
       beginDescription: 'This is where the flow begins.',
       answerDescription: `A component that serves as the interface between human and bot, receiving user inputs and displaying the agent's responses.`,
-      retrievalDescription: `A component that retrieves information from a specified knowledge base and returns 'Empty response' if no information is found. Ensure the correct knowledge base is selected.`,
+      retrievalDescription: `A component that retrieves information from specified knowledge bases (datasets). Ensure that the knowledge bases you select use the same embedding model.`,
       generateDescription: `A component that prompts the LLM to generate responses. Ensure the prompt is set correctly.`,
       categorizeDescription: `A component that uses the LLM to classify user inputs into predefined categories. Ensure you specify the name, description, and examples for each category, along with the corresponding next component.`,
       relevantDescription: `A component that uses the LLM to assess whether the upstream output is relevant to the user's latest query. Ensure you specify the next component for each judge result.`,
-      rewriteQuestionDescription: `A component that refines a user query if it fails to retrieve relevant information from the knowledge base. It repeats this process until the predefined looping upper limit is reached. Ensure its upstream is 'Relevant' and downstream is 'Retrieval'. `,
+      rewriteQuestionDescription: `A component that rewrites a user query from the Interact component, based on the context of previous dialogues.`,
       messageDescription:
-        "A component that sends out a static message. If multiple messages are supplied, it randomly selects one to send. Ensure its downstream is 'Answer', the interface component.",
+        "A component that sends out a static message. If multiple messages are supplied, it randomly selects one to send. Ensure its downstream is 'Interact', the interface component.",
       keywordDescription: `A component that retrieves top N search results from user's input. Ensure the TopN value is set properly before use.`,
       switchDescription: `A component that evaluates conditions based on the output of previous components and directs the flow of execution accordingly. It allows for complex branching logic by defining cases and specifying actions for each case or default action if no conditions are met.`,
       wikipediaDescription: `A component that searches from wikipedia.org, using TopN to specify the number of search results. It supplements the existing knowledge bases.`,
@@ -728,7 +832,7 @@ The above is the content you need to summarize.`,
       nameRequiredMsg: 'Name is required',
       nameRepeatedMsg: 'The name cannot be repeated',
       keywordExtract: 'Keyword',
-      keywordExtractDescription: `A component that extracts keywords from a user query, with Top N specifing the number of keywords to extract.`,
+      keywordExtractDescription: `A component that extracts keywords from a user query, with Top N specifying the number of keywords to extract.`,
       baidu: 'Baidu',
       baiduDescription: `A component that searches from baidu.com, using TopN to specify the number of search results. It supplements the existing knowledge bases.`,
       duckDuckGo: 'DuckDuckGo',
@@ -762,7 +866,7 @@ The above is the content you need to summarize.`,
       bingDescription:
         'A component that searches from https://www.bing.com/, allowing you to specify the number of search results using TopN. It supplements the existing knowledge bases. Please note that this requires an API key from microsoft.com.',
       apiKey: 'API KEY',
-      country: 'Country&Region',
+      country: 'Country & Region',
       language: 'Language',
       googleScholar: 'Google Scholar',
       googleScholarDescription:
@@ -783,7 +887,7 @@ The above is the content you need to summarize.`,
       baiduFanyi: 'BaiduFanyi',
       baiduFanyiDescription:
         'A component that gets specialized translations from https://fanyi.baidu.com/.',
-      appid: 'App id',
+      appid: 'App ID',
       secretKey: 'Secret key',
       domain: 'Domain',
       transType: 'Translation type',
@@ -906,22 +1010,22 @@ The above is the content you need to summarize.`,
       switch: 'Switch',
       logicalOperator: 'Logical operator',
       switchOperatorOptions: {
-        equal: 'equal',
-        notEqual: 'notEqual',
+        equal: 'Equals',
+        notEqual: 'Not equal',
         gt: 'Greater than',
         ge: 'Greater equal',
         lt: 'Less than',
         le: 'Less equal',
         contains: 'Contains',
         notContains: 'Not contains',
-        startWith: 'Start with',
-        endWith: 'End with',
-        empty: 'Empty',
+        startWith: 'Starts with',
+        endWith: 'Ends with',
+        empty: 'Is empty',
         notEmpty: 'Not empty',
       },
       switchLogicOperatorOptions: {
-        and: 'And',
-        or: 'Or',
+        and: 'AND',
+        or: 'OR',
       },
       operator: 'Operator',
       value: 'Value',
@@ -1053,7 +1157,7 @@ The above is the content you need to summarize.`,
       testRun: 'Test Run',
       template: 'Template',
       templateDescription:
-        'A component that formats the output of another component.',
+        'A component that formats the output of other components.1. Supports Jinja2 templates, will first convert the input to an object and then render the template, 2. Simultaneously retains the original method of using {parameter} string replacement',
       emailComponent: 'Email',
       emailDescription: 'Send an email to a specified address.',
       smtpServer: 'SMTP Server',
@@ -1081,14 +1185,72 @@ The above is the content you need to summarize.`,
       contentTip: 'content: Email content (Optional)',
       jsonUploadTypeErrorMessage: 'Please upload json file',
       jsonUploadContentErrorMessage: 'json file error',
-    },
-    footer: {
-      profile: 'All rights reserved @ React',
-    },
-    layout: {
-      file: 'file',
-      knowledge: 'knowledge',
-      chat: 'chat',
+      iteration: 'Iteration',
+      iterationDescription: `This component firstly split the input into array by "delimiter".
+Perform the same operation steps on the elements in the array in sequence until all results are output, which can be understood as a task batch processor.
+
+For example, within the long text translation iteration node, if all content is input to the LLM node, the single conversation limit may be reached. The upstream node can first split the long text into multiple fragments, and cooperate with the iterative node to perform batch translation on each fragment to avoid reaching the LLM message limit for a single conversation.`,
+      delimiterTip: `
+This delimiter is used to split the input text into several text pieces echo of which will be performed as input item of each iteration.`,
+      delimiterOptions: {
+        comma: 'Comma',
+        lineBreak: 'Line break',
+        tab: 'Tab',
+        underline: 'Underline',
+        diagonal: 'Forward slash',
+        minus: 'Dash',
+        semicolon: 'Semicolon',
+      },
+      addVariable: 'Add variable',
+      variableSettings: 'Variable settings',
+      globalVariables: 'Global variables',
+      systemPrompt: 'System prompt',
+      addCategory: 'Add category',
+      categoryName: 'Category name',
+      nextStep: 'Next step',
+      variableExtractDescription:
+        'Extract user information into global variable throughout the conversation',
+      variableExtract: 'Variables',
+      variables: 'Variables',
+      variablesTip: `Set the clear json key variable with a value of empty. e.g.
+      {
+        "UserCode":"",
+        "NumberPhone":""
+      }`,
+      datatype: 'MINE type of the HTTP request',
+      insertVariableTip: `Enter / Insert variables`,
+      historyversion: 'History version',
+      filename: 'File name',
+      version: {
+        created: 'Created',
+        details: 'Version details',
+        dsl: 'DSL',
+        download: 'Download',
+        version: 'Version',
+        select: 'No version selected',
+      },
+      setting: 'Setting',
+      settings: {
+        agentSetting: 'Agent Setting',
+        title: 'title',
+        description: 'description',
+        upload: 'Upload',
+        photo: 'Photo',
+        permissions: 'Permission',
+        permissionsTip: 'You can set the permissions of the team members here.',
+        me: 'me',
+        team: 'Team',
+      },
+      noMoreData: 'No more data',
+      searchAgentPlaceholder: 'Search agent',
+      footer: {
+        profile: 'All rights reserved @ React',
+      },
+      layout: {
+        file: 'file',
+        knowledge: 'knowledge',
+        chat: 'chat',
+      },
     },
   },
 };
