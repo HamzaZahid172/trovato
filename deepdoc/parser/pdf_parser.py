@@ -270,59 +270,112 @@ class RAGFlowPdfParser:
                 box["H_right"] = spans[span_index]["x1"]
                 box["SP"] = span_index
 
-    def __ocr(self, pagenum, img, chars, ZM=3, device_id: int | None = None):
-        start = timer()
-        bxs = self.ocr.detect(np.array(img), device_id)
-        logging.info(f"__ocr detecting boxes of a image cost ({timer() - start}s)")
+    def _ocr(self, page_number, image, characters, zoom_factor=3):
+        #"""Enhanced OCR processing with better error handling and performance."""
+        
+        # Configurable thresholds
+        SIZE_MISMATCH_THRESHOLD = 0.7  # Max size difference ratio
+        SPACE_INSERTION_CHARS = r"[0-9a-zA-Zа-яА-Я,.?;:!%%]"
+        MIN_BOX_AREA = 4  # Minimum area for a valid box (width*height in pixels)
+        
+        try:
+            # Convert image to numpy array once
+            image_np = np.array(image)
+            
+            # Detect text regions with error handling
+            try:
+                detected_lines = self.ocr.detect(image_np)
+                if not detected_lines:
+                    self.boxes.append([])
+                    logging.debug(f"No text detected on page {page_number}")
+                    return
+            except Exception as e:
+                logging.error(f"OCR detection failed on page {page_number}: {str(e)}")
+                self.boxes.append([])
+                return
 
-        start = timer()
-        if not bxs:
-            self.boxes.append([])
-            return
-        boxes = [(line[0], line[1][0]) for line in boxes]
-        boxes = Recognizer.sort_Y_firstly(
-            [{"x0": b[0][0] / zoom_factor, "x1": b[1][0] / zoom_factor,
-              "top": b[0][1] / zoom_factor, "text": "", "txt": t,
-              "bottom": b[-1][1] / zoom_factor,
-              "page_number": page_number} for b, t in boxes if b[0][0] <= b[1][0] and b[0][1] <= b[-1][1]],
-            self.mean_height[-1] / 3
-        )
+            # Process detected boxes
+            valid_boxes = []
+            for line in detected_lines:
+                b, t = line[0], line[1][0]
+                # Validate box coordinates and minimum size
+                if (b[0][0] <= b[1][0] and b[0][1] <= b[-1][1] and 
+                    (b[1][0] - b[0][0]) * (b[-1][1] - b[0][1]) >= MIN_BOX_AREA):
+                    valid_boxes.append((b, t))
+            
+            # Convert and sort boxes
+            boxes = [
+                {
+                    "x0": b[0][0] / zoom_factor,
+                    "x1": b[1][0] / zoom_factor,
+                    "top": b[0][1] / zoom_factor,
+                    "bottom": b[-1][1] / zoom_factor,
+                    "text": "",
+                    "txt": t,  # Temporary storage
+                    "page_number": page_number,
+                    "confidence": t[1] if isinstance(t, tuple) else 1.0  # Store confidence if available
+                }
+                for b, t in valid_boxes
+            ]
+            
+            # Sort boxes with optimized threshold calculation
+            sort_threshold = self.mean_height[-1] / 3 if self.mean_height else 10
+            boxes = Recognizer.sort_Y_firstly(boxes, sort_threshold)
 
-        # merge chars in the same rect
-        for c in Recognizer.sort_Y_firstly(
-                chars, self.mean_height[pagenum - 1] // 4):
-            ii = Recognizer.find_overlapped(c, bxs)
-            if ii is None:
-                self.lefted_chars.append(c)
-                continue
-            char_height = character["bottom"] - character["top"]
-            box_height = boxes[index]["bottom"] - boxes[index]["top"]
-            if abs(char_height - box_height) / max(char_height, box_height) >= 0.7 and character["text"] != ' ':
-                self.lefted_chars.append(character)
-                continue
-            if character["text"] == " " and boxes[index]["text"]:
-                if re.match(r"[0-9a-zA-Zа-яА-Я,.?;:!%%]", boxes[index]["text"][-1]):
-                    boxes[index]["text"] += " "
-            else:
-                boxes[index]["text"] += character["text"]
+            # Pre-calculate mean height for current page if not available
+            current_page_mean_height = (
+                self.mean_height[page_number - 1] 
+                if page_number - 1 < len(self.mean_height) and self.mean_height[page_number - 1] > 0
+                else 12  # Default value
+            )
 
-        logging.info(f"__ocr sorting {len(chars)} chars cost {timer() - start}s")
-        start = timer()
-        boxes_to_reg = []
-        img_np = np.array(img)
-        for b in bxs:
-            if not b["text"]:
-                left, right, top, bott = b["x0"] * ZM, b["x1"] * \
-                                         ZM, b["top"] * ZM, b["bottom"] * ZM
-                b["box_image"] = self.ocr.get_rotate_crop_image(img_np, np.array([[left, top], [right, top], [right, bott], [left, bott]], dtype=np.float32))
-                boxes_to_reg.append(b)
-            del b["txt"]
-        texts = self.ocr.recognize_batch([b["box_image"] for b in boxes_to_reg], device_id)
-        for i in range(len(boxes_to_reg)):
-            boxes_to_reg[i]["text"] = texts[i]
-            del boxes_to_reg[i]["box_image"]
-        logging.info(f"__ocr recognize {len(bxs)} boxes cost {timer() - start}s")
-        bxs = [b for b in bxs if b["text"]]
+            # Process characters in batches for better performance
+            sorted_chars = Recognizer.sort_Y_firstly(characters, current_page_mean_height // 4)
+            char_index = 0
+            total_chars = len(sorted_chars)
+            
+            while char_index < total_chars:
+                char = sorted_chars[char_index]
+                char_index += 1
+                
+                # Find matching box
+                box_idx = Recognizer.find_overlapped(char, boxes)
+                if box_idx is None:
+                    self.lefted_chars.append(char)
+                    continue
+
+                # Calculate sizes once
+                box = boxes[box_idx]
+                char_height = char["bottom"] - char["top"]
+                box_height = box["bottom"] - box["top"]
+                size_ratio = abs(char_height - box_height) / max(char_height, box_height)
+                
+                # Skip characters with significant size mismatch
+                if size_ratio >= SIZE_MISMATCH_THRESHOLD and char["text"] != ' ':
+                    self.lefted_chars.append(char)
+                    continue
+
+                # Handle space insertion more intelligently
+                if char["text"] == " ":
+                    if box["text"]:  # Only add space if there's existing text
+                        last_char = box["text"][-1]
+                        # Add space only between certain characters
+                        if re.match(SPACE_INSERTION_CHARS, last_char):
+                            # Don't add duplicate spaces
+                            if not box["text"].endswith(" "):
+                                box["text"] += " "
+                else:
+                    # Validate character before adding
+                    if char["text"].strip():  # Skip empty/whitespace-only chars
+                        box["text"] += char["text"]
+
+        for box in boxes:
+            if not box["text"]:
+                left, right, top, bottom = box["x0"] * zoom_factor, box["x1"] * zoom_factor, box["top"] * zoom_factor, box["bottom"] * zoom_factor
+                box["text"] = self.ocr.recognize(np.array(image),
+                                               np.array([[left, top], [right, top], [right, bottom], [left, bottom]], dtype=np.float32))
+            del box["txt"]
+        boxes = [box for box in boxes if box["text"]]
         if self.mean_height[-1] == 0:
             self.mean_height[-1] = np.median([box["bottom"] - box["top"] for box in boxes])
         self.boxes.append(boxes)
