@@ -271,8 +271,8 @@ class RAGFlowPdfParser:
                 box["SP"] = span_index
 
     def _ocr(self, page_number, image, characters, zoom_factor=3):
-        #"""Enhanced OCR processing with better error handling and performance."""
-        
+    #Enhanced OCR processing with better error handling and performance.
+    
         # Configurable thresholds
         SIZE_MISMATCH_THRESHOLD = 0.7  # Max size difference ratio
         SPACE_INSERTION_CHARS = r"[0-9a-zA-Zа-яА-Я,.?;:!%%]"
@@ -369,16 +369,52 @@ class RAGFlowPdfParser:
                     if char["text"].strip():  # Skip empty/whitespace-only chars
                         box["text"] += char["text"]
 
-        for box in boxes:
-            if not box["text"]:
-                left, right, top, bottom = box["x0"] * zoom_factor, box["x1"] * zoom_factor, box["top"] * zoom_factor, box["bottom"] * zoom_factor
-                box["text"] = self.ocr.recognize(np.array(image),
-                                               np.array([[left, top], [right, top], [right, bottom], [left, bottom]], dtype=np.float32))
-            del box["txt"]
-        boxes = [box for box in boxes if box["text"]]
-        if self.mean_height[-1] == 0:
-            self.mean_height[-1] = np.median([box["bottom"] - box["top"] for box in boxes])
-        self.boxes.append(boxes)
+            # Process empty boxes with fallback OCR
+            for box in boxes:
+                if not box["text"]:
+                    try:
+                        # Convert coordinates once
+                        left = int(box["x0"] * zoom_factor)
+                        top = int(box["top"] * zoom_factor)
+                        right = int(box["x1"] * zoom_factor)
+                        bottom = int(box["bottom"] * zoom_factor)
+                        
+                        # Validate coordinates
+                        if right > left and bottom > top:
+                            polygon = np.array([
+                                [left, top],
+                                [right, top],
+                                [right, bottom],
+                                [left, bottom]
+                            ], dtype=np.float32)
+                            
+                            # Perform OCR with error handling
+                            box["text"] = self.ocr.recognize(image_np, polygon) or ""
+                    except Exception as e:
+                        logging.warning(f"Fallback OCR failed for box on page {page_number}: {str(e)}")
+                        box["text"] = ""
+
+            # Clean up and filter boxes
+            final_boxes = []
+            for box in boxes:
+                if "txt" in box:
+                    del box["txt"]
+                if box["text"].strip():  # Only keep boxes with actual content
+                    final_boxes.append(box)
+            
+            # Update mean height if needed
+            if not self.mean_height or self.mean_height[-1] == 0:
+                heights = [box["bottom"] - box["top"] for box in final_boxes]
+                if heights:
+                    self.mean_height.append(np.median(heights))
+                else:
+                    self.mean_height.append(current_page_mean_height)  # Fallback
+            
+            self.boxes.append(final_boxes)
+            
+        except Exception as e:
+            logging.error(f"Unexpected error in _ocr for page {page_number}: {str(e)}")
+            self.boxes.append([])
 
     def _layouts_rec(self, zoom_factor, drop=True):
         assert len(self.page_images) == len(self.boxes)
