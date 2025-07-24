@@ -1,3 +1,6 @@
+#
+#  Copyright 2025 The InfiniFlow Authors. All Rights Reserved.
+#
 #  Licensed under the Apache License, Version 2.0 (the "License");
 #  you may not use this file except in compliance with the License.
 #  You may obtain a copy of the License at
@@ -10,6 +13,7 @@
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
 #
+
 import os
 import re
 from collections import Counter
@@ -42,8 +46,8 @@ class LayoutRecognizer(Recognizer):
     def __init__(self, domain):
         try:
             model_dir = os.path.join(
-                    get_project_base_directory(),
-                    "rag/res/deepdoc")
+                get_project_base_directory(),
+                "rag/res/deepdoc")
             super().__init__(self.labels, domain, model_dir)
         except Exception:
             model_dir = snapshot_download(repo_id="InfiniFlow/deepdoc",
@@ -52,18 +56,23 @@ class LayoutRecognizer(Recognizer):
             super().__init__(self.labels, domain, model_dir)
 
         self.garbage_layouts = ["footer", "header", "reference"]
+        self.client = None
+        if os.environ.get("TENSORRT_DLA_SVR"):
+            from deepdoc.vision.dla_cli import DLAClient
+            self.client = DLAClient(os.environ["TENSORRT_DLA_SVR"])
 
-    def __call__(self, image_list, ocr_res, scale_factor=3,
-                 thr=0.2, batch_size=16, drop=True):
+    def __call__(self, image_list, ocr_res, scale_factor=3, thr=0.2, batch_size=16, drop=True):
         def __is_garbage(b):
-            patt = [r"^•+$", r"(版权归©|免责条款|地址[:：])", r"\.{3,}", "^[0-9]{1,2} / ?[0-9]{1,2}$",
+            patt = [r"^•+$", "^[0-9]{1,2} / ?[0-9]{1,2}$",
                     r"^[0-9]{1,2} of [0-9]{1,2}$", "^http://[^ ]{12,}",
-                    "(资料|数据)来源[:：]", "[0-9a-z._-]+@[a-z0-9-]+\\.[a-z]{2,3}",
                     "\\(cid *: *[0-9]+ *\\)"
                     ]
             return any([re.search(p, b["text"]) for p in patt])
 
-        layouts = super().__call__(image_list, thr, batch_size)
+        if self.client:
+            layouts = self.client.predict(image_list)
+        else:
+            layouts = super().__call__(image_list, thr, batch_size)
         # save_results(image_list, layouts, self.labels, output_dir='output/', threshold=0.7)
         assert len(image_list) == len(ocr_res)
         # Tag layout type
@@ -78,7 +87,7 @@ class LayoutRecognizer(Recognizer):
                     "x0": b["bbox"][0] / scale_factor, "x1": b["bbox"][2] / scale_factor,
                     "top": b["bbox"][1] / scale_factor, "bottom": b["bbox"][-1] / scale_factor,
                     "page_number": pn,
-                    } for b in lts if float(b["score"]) >= 0.8 or b["type"] not in self.garbage_layouts]
+                    } for b in lts if float(b["score"]) >= 0.4 or b["type"] not in self.garbage_layouts]
             lts = self.sort_Y_firstly(lts, np.mean(
                 [lt["bottom"] - lt["top"] for lt in lts]) / 2)
             lts = self.layouts_cleanup(bxs, lts)
@@ -153,6 +162,9 @@ class LayoutRecognizer(Recognizer):
         ocr_res = [b for b in ocr_res if b["text"].strip() not in garbag_set]
         return ocr_res, page_layout
 
+    def forward(self, image_list, thr=0.7, batch_size=16):
+        return super().__call__(image_list, thr, batch_size)
+
 
 class LayoutRecognizer4YOLOv10(LayoutRecognizer):
     labels = [
@@ -179,9 +191,9 @@ class LayoutRecognizer4YOLOv10(LayoutRecognizer):
 
     def preprocess(self, image_list):
         inputs = []
-        new_shape = self.input_shape # height, width
+        new_shape = self.input_shape  # height, width
         for img in image_list:
-            shape = img.shape[:2]# current shape [height, width]
+            shape = img.shape[:2]  # current shape [height, width]
             # Scale ratio (new / old)
             r = min(new_shape[0] / shape[0], new_shape[1] / shape[1])
             # Compute padding
@@ -236,4 +248,3 @@ class LayoutRecognizer4YOLOv10(LayoutRecognizer):
             "bbox": [float(t) for t in boxes[i].tolist()],
             "score": float(scores[i])
         } for i in indices]
-

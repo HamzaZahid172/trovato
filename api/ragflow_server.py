@@ -28,6 +28,8 @@ import sys
 import time
 import traceback
 from concurrent.futures import ThreadPoolExecutor
+import threading
+import uuid
 
 from werkzeug.serving import run_simple
 from api import settings
@@ -41,17 +43,31 @@ from api.db.init_data import init_web_data
 from api.versions import get_ragflow_version
 from api.utils import show_configs
 from rag.settings import print_rag_settings
+from rag.utils.redis_conn import RedisDistributedLock
 
+stop_event = threading.Event()
+
+RAGFLOW_DEBUGPY_LISTEN = int(os.environ.get('RAGFLOW_DEBUGPY_LISTEN', "0"))
 
 def update_progress():
-    while True:
-        time.sleep(3)
+    lock_value = str(uuid.uuid4())
+    redis_lock = RedisDistributedLock("update_progress", lock_value=lock_value, timeout=60)
+    logging.info(f"update_progress lock_value: {lock_value}")
+    while not stop_event.is_set():
         try:
-            DocumentService.update_progress()
+            if redis_lock.acquire():
+                DocumentService.update_progress()
+                redis_lock.release()
+            stop_event.wait(6)
         except Exception:
             logging.exception("update_progress exception")
 
-#Updated logo
+def signal_handler(sig, frame):
+    logging.info("Received interrupt signal, shutting down...")
+    stop_event.set()
+    time.sleep(1)
+    sys.exit(0)
+
 if __name__ == '__main__':
     logging.info(r"""
       _______                  _        
@@ -71,6 +87,11 @@ if __name__ == '__main__':
     show_configs()
     settings.init_settings()
     print_rag_settings()
+
+    if RAGFLOW_DEBUGPY_LISTEN > 0:
+        logging.info(f"debugpy listen on {RAGFLOW_DEBUGPY_LISTEN}")
+        import debugpy
+        debugpy.listen(("0.0.0.0", RAGFLOW_DEBUGPY_LISTEN))
 
     # init db
     init_web_db()
@@ -97,6 +118,9 @@ if __name__ == '__main__':
     RuntimeConfig.init_env()
     RuntimeConfig.init_config(JOB_SERVER_HOST=settings.HOST_IP, HTTP_PORT=settings.HOST_PORT)
 
+    signal.signal(signal.SIGINT, signal_handler)
+    signal.signal(signal.SIGTERM, signal_handler)
+
     thread = ThreadPoolExecutor(max_workers=1)
     thread.submit(update_progress)
 
@@ -113,4 +137,6 @@ if __name__ == '__main__':
         )
     except Exception:
         traceback.print_exc()
+        stop_event.set()
+        time.sleep(1)
         os.kill(os.getpid(), signal.SIGKILL)

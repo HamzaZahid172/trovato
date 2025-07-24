@@ -38,8 +38,12 @@ const KnowledgeList = () => {
     handleInputChange,
     loading,
   } = useInfiniteFetchKnowledgeList();
-  console.log('🚀 ~ KnowledgeList ~ data:', data);
-  const nextList = data?.pages?.flatMap((x) => x.kbs) ?? [];
+
+  const nextList = useMemo(() => {
+    const list =
+      data?.pages?.flatMap((x) => (Array.isArray(x.kbs) ? x.kbs : [])) ?? [];
+    return list;
+  }, [data?.pages]);
 
   const total = useMemo(() => {
     return data?.pages.at(-1).total ?? 0;

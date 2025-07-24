@@ -1,3 +1,6 @@
+#
+#  Copyright 2025 The InfiniFlow Authors. All Rights Reserved.
+#
 #  Licensed under the Apache License, Version 2.0 (the "License");
 #  you may not use this file except in compliance with the License.
 #  You may obtain a copy of the License at
@@ -15,9 +18,16 @@ from io import BytesIO
 from pptx import Presentation
 
 
-class RAGFlowPptParser(object):
+class RAGFlowPptParser:
     def __init__(self):
         super().__init__()
+
+    def __get_bulleted_text(self, paragraph):
+        is_bulleted = bool(paragraph._p.xpath("./a:pPr/a:buChar")) or bool(paragraph._p.xpath("./a:pPr/a:buAutoNum")) or bool(paragraph._p.xpath("./a:pPr/a:buBlip"))
+        if is_bulleted:
+            return f"{'  '* paragraph.level}.{paragraph.text}"
+        else:
+            return paragraph.text
 
     def __extract(self, shape):
         if shape.shape_type == 19:
@@ -29,7 +39,12 @@ class RAGFlowPptParser(object):
             return "\n".join(rows)
 
         if shape.has_text_frame:
-            return shape.text_frame.text
+            text_frame = shape.text_frame
+            texts = []
+            for paragraph in text_frame.paragraphs:
+                if paragraph.text.strip():
+                    texts.append(self.__get_bulleted_text(paragraph))
+            return "\n".join(texts)
 
         if shape.shape_type == 6:
             texts = []

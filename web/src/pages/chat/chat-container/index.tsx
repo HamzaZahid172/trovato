@@ -18,6 +18,7 @@ import {
   useGetChatSearchParams,
 } from '@/hooks/chat-hooks';
 import { useFetchUserInfo } from '@/hooks/user-setting-hooks';
+import { buildMessageUuidWithRole } from '@/utils/chat';
 import { memo } from 'react';
 import styles from './index.less';
 
@@ -39,6 +40,7 @@ const ChatContainer = ({ controller }: IProps) => {
     handlePressEnter,
     regenerateMessage,
     removeMessageById,
+    stopOutputMessage,
   } = useSendNextMessage(controller);
 
   const { visible, hideModal, documentId, selectedChunk, clickDocumentButton } =
@@ -64,11 +66,11 @@ const ChatContainer = ({ controller }: IProps) => {
                       sendLoading &&
                       derivedMessages.length - 1 === i
                     }
-                    key={message.id}
+                    key={buildMessageUuidWithRole(message)}
                     item={message}
                     nickname={userInfo.nickname}
                     avatar={userInfo.avatar}
-                    avatardialog={conversation.avatar}
+                    avatarDialog={conversation.avatar}
                     reference={buildMessageItemReference(
                       {
                         message: derivedMessages,
@@ -99,6 +101,7 @@ const ChatContainer = ({ controller }: IProps) => {
           createConversationBeforeUploadDocument={
             createConversationBeforeUploadDocument
           }
+          stopOutputMessage={stopOutputMessage}
         ></MessageInput>
       </Flex>
       <PdfDrawer

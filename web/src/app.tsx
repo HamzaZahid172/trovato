@@ -2,10 +2,12 @@ import i18n from '@/locales/config';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
 import { App, ConfigProvider, ConfigProviderProps, theme } from 'antd';
+import pt_BR from 'antd/lib/locale/pt_BR';
 import enUS from 'antd/locale/en_US';
 import vi_VN from 'antd/locale/vi_VN';
 import zhCN from 'antd/locale/zh_CN';
 import zh_HK from 'antd/locale/zh_HK';
+import deDE from 'antd/locale/de_DE';
 import dayjs from 'dayjs';
 import advancedFormat from 'dayjs/plugin/advancedFormat';
 import customParseFormat from 'dayjs/plugin/customParseFormat';
@@ -15,6 +17,7 @@ import weekYear from 'dayjs/plugin/weekYear';
 import weekday from 'dayjs/plugin/weekday';
 import React, { ReactNode, useEffect, useState } from 'react';
 import { ThemeProvider, useTheme } from './components/theme-provider';
+import { TooltipProvider } from './components/ui/tooltip';
 import storage from './utils/authorization-util';
 
 dayjs.extend(customParseFormat);
@@ -29,6 +32,8 @@ const AntLanguageMap = {
   zh: zhCN,
   'zh-TRADITIONAL': zh_HK,
   vi: vi_VN,
+  'pt-BR': pt_BR,
+  de: deDE,
 };
 
 const queryClient = new QueryClient();
@@ -61,7 +66,7 @@ function Root({ children }: React.PropsWithChildren) {
         }}
         locale={locale}
       >
-        <App> {children}</App>
+        <App>{children}</App>
       </ConfigProvider>
       <ReactQueryDevtools buttonPosition={'top-left'} />
     </>
@@ -78,11 +83,13 @@ const RootProvider = ({ children }: React.PropsWithChildren) => {
   }, []);
 
   return (
-    <QueryClientProvider client={queryClient}>
-      <ThemeProvider defaultTheme="light" storageKey="ragflow-ui-theme">
-        <Root>{children}</Root>
-      </ThemeProvider>
-    </QueryClientProvider>
+    <TooltipProvider>
+      <QueryClientProvider client={queryClient}>
+        <ThemeProvider defaultTheme="light" storageKey="ragflow-ui-theme">
+          <Root>{children}</Root>
+        </ThemeProvider>
+      </QueryClientProvider>
+    </TooltipProvider>
   );
 };
 export function rootContainer(container: ReactNode) {

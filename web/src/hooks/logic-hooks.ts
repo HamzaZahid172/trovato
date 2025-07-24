@@ -7,7 +7,7 @@ import { IKnowledgeFile } from '@/interfaces/database/knowledge';
 import { IClientConversation, IMessage } from '@/pages/chat/interface';
 import api from '@/utils/api';
 import { getAuthorization } from '@/utils/authorization-util';
-import { buildMessageUuid, getMessagePureId } from '@/utils/chat';
+import { buildMessageUuid } from '@/utils/chat';
 import { PaginationProps, message } from 'antd';
 import { FormInstance } from 'antd/lib';
 import axios from 'axios';
@@ -160,6 +160,11 @@ export const useSendMessageWithSse = (
   const [answer, setAnswer] = useState<IAnswer>({} as IAnswer);
   const [done, setDone] = useState(true);
   const timer = useRef<any>();
+  const sseRef = useRef<AbortController>();
+
+  const initializeSseRef = useCallback(() => {
+    sseRef.current = new AbortController();
+  }, []);
 
   const resetAnswer = useCallback(() => {
     if (timer.current) {
@@ -176,6 +181,7 @@ export const useSendMessageWithSse = (
       body: any,
       controller?: AbortController,
     ): Promise<{ response: Response; data: ResponseType } | undefined> => {
+      initializeSseRef();
       try {
         setDone(false);
         const response = await fetch(url, {
@@ -185,7 +191,7 @@ export const useSendMessageWithSse = (
             'Content-Type': 'application/json',
           },
           body: JSON.stringify(body),
-          signal: controller?.signal,
+          signal: controller?.signal || sseRef.current?.signal,
         });
 
         const res = response.clone().json();
@@ -230,10 +236,14 @@ export const useSendMessageWithSse = (
         console.warn(e);
       }
     },
-    [url, resetAnswer],
+    [initializeSseRef, url, resetAnswer],
   );
 
-  return { send, answer, done, setDone, resetAnswer };
+  const stopOutputMessage = useCallback(() => {
+    sseRef.current?.abort();
+  }, []);
+
+  return { send, answer, done, setDone, resetAnswer, stopOutputMessage };
 };
 
 export const useSpeechWithSse = (url: string = api.tts) => {
@@ -284,7 +294,7 @@ export const useScrollToBottom = (messages?: unknown) => {
 export const useHandleMessageInputChange = () => {
   const [value, setValue] = useState('');
 
-  const handleInputChange: ChangeEventHandler<HTMLInputElement> = (e) => {
+  const handleInputChange: ChangeEventHandler<HTMLTextAreaElement> = (e) => {
     const value = e.target.value;
     const nextValue = value.replaceAll('\\n', '\n').replaceAll('\\t', '\t');
     setValue(nextValue);
@@ -309,7 +319,9 @@ export const useSelectDerivedMessages = () => {
           ...pre,
           {
             ...message,
-            id: buildMessageUuid(message),
+            id: buildMessageUuid(message), // The message id is generated on the front end,
+            // and the message id returned by the back end is the same as the question id,
+            //  so that the pair of messages can be deleted together when deleting the message
           },
           {
             role: MessageType.Assistant,
@@ -353,10 +365,7 @@ export const useSelectDerivedMessages = () => {
   const removeMessageById = useCallback(
     (messageId: string) => {
       setDerivedMessages((pre) => {
-        const nextMessages =
-          pre?.filter(
-            (x) => getMessagePureId(x.id) !== getMessagePureId(messageId),
-          ) ?? [];
+        const nextMessages = pre?.filter((x) => x.id !== messageId) ?? [];
         return nextMessages;
       });
     },
@@ -404,30 +413,6 @@ export const useSelectDerivedMessages = () => {
 export interface IRemoveMessageById {
   removeMessageById(messageId: string): void;
 }
-
-export const useRemoveMessageById = (
-  setCurrentConversation: (
-    callback: (state: IClientConversation) => IClientConversation,
-  ) => void,
-) => {
-  const removeMessageById = useCallback(
-    (messageId: string) => {
-      setCurrentConversation((pre) => {
-        const nextMessages =
-          pre.message?.filter(
-            (x) => getMessagePureId(x.id) !== getMessagePureId(messageId),
-          ) ?? [];
-        return {
-          ...pre,
-          message: nextMessages,
-        };
-      });
-    },
-    [setCurrentConversation],
-  );
-
-  return { removeMessageById };
-};
 
 export const useRemoveMessagesAfterCurrentMessage = (
   setCurrentConversation: (
@@ -533,7 +518,7 @@ export const useSelectItem = (defaultId?: string) => {
 };
 
 export const useFetchModelId = () => {
-  const { data: tenantInfo } = useFetchTenantInfo();
+  const { data: tenantInfo } = useFetchTenantInfo(true);
 
   return tenantInfo?.llm_id ?? '';
 };

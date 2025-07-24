@@ -396,6 +396,8 @@ class ComponentBase(ABC):
         )
 
     def __init__(self, canvas, id, param: ComponentParamBase):
+        from agent.canvas import Canvas  # Local import to avoid cyclic dependency
+        assert isinstance(canvas, Canvas), "canvas must be an instance of Canvas"
         self._canvas = canvas
         self._id = id
         self._param = param
@@ -426,22 +428,26 @@ class ComponentBase(ABC):
 
     def output(self, allow_partial=True) -> Tuple[str, Union[pd.DataFrame, partial]]:
         o = getattr(self._param, self._param.output_var_name)
-        if not isinstance(o, partial) and not isinstance(o, pd.DataFrame):
-            if not isinstance(o, list):
-                o = [o]
-            o = pd.DataFrame(o)
+        if not isinstance(o, partial):
+            if not isinstance(o, pd.DataFrame):
+                if isinstance(o, list):
+                    return self._param.output_var_name, pd.DataFrame(o).dropna()
+                if o is None:
+                    return self._param.output_var_name, pd.DataFrame()
+                return self._param.output_var_name, pd.DataFrame([{"content": str(o)}])
+            return self._param.output_var_name, o
 
         if allow_partial or not isinstance(o, partial):
             if not isinstance(o, partial) and not isinstance(o, pd.DataFrame):
-                return pd.DataFrame(o if isinstance(o, list) else [o])
+                return pd.DataFrame(o if isinstance(o, list) else [o]).dropna()
             return self._param.output_var_name, o
 
         outs = None
         for oo in o():
             if not isinstance(oo, pd.DataFrame):
-                outs = pd.DataFrame(oo if isinstance(oo, list) else [oo])
+                outs = pd.DataFrame(oo if isinstance(oo, list) else [oo]).dropna()
             else:
-                outs = oo
+                outs = oo.dropna()
         return self._param.output_var_name, outs
 
     def reset(self):
@@ -453,12 +459,14 @@ class ComponentBase(ABC):
 
     def get_input(self):
         if self._param.debug_inputs:
-            return pd.DataFrame([{"content": v["value"]} for v in self._param.debug_inputs])
+            return pd.DataFrame([{"content": v["value"]} for v in self._param.debug_inputs if v.get("value")])
 
         reversed_cpnts = []
         if len(self._canvas.path) > 1:
             reversed_cpnts.extend(self._canvas.path[-2])
         reversed_cpnts.extend(self._canvas.path[-1])
+        up_cpns = self.get_upstream()
+        reversed_up_cpnts = [cpn for cpn in reversed_cpnts if cpn in up_cpns]
 
         if self._param.query:
             self._param.inputs = []
@@ -478,10 +486,12 @@ class ComponentBase(ABC):
                         continue
 
                     if q["component_id"].lower().find("answer") == 0:
-                        for r, c in self._canvas.history[::-1]:
-                            if r == "user":
-                                self._param.inputs.append(pd.DataFrame([{"content": c, "component_id": q["component_id"]}]))
-                                break
+                        txt = []
+                        for r, c in self._canvas.history[::-1][:self._param.message_history_window_size][::-1]:
+                            txt.append(f"{r.upper()}:{c}")
+                        txt = "\n".join(txt)
+                        self._param.inputs.append({"content": txt, "component_id": q["component_id"]})
+                        outs.append(pd.DataFrame([{"content": txt}]))
                         continue
 
                     outs.append(self._canvas.get_component(q["component_id"])["obj"].output(allow_partial=False)[1])
@@ -499,7 +509,7 @@ class ComponentBase(ABC):
 
         upstream_outs = []
 
-        for u in reversed_cpnts[::-1]:
+        for u in reversed_up_cpnts[::-1]:
             if self.get_component_name(u) in ["switch", "concentrator"]:
                 continue
             if self.component_name.lower() == "generate" and self.get_component_name(u) == "retrieval":
@@ -539,7 +549,7 @@ class ComponentBase(ABC):
         return df
 
     def get_input_elements(self):
-        assert self._param.query, "Please identify input parameters firstly."
+        assert self._param.query, "Please verify the input parameters first."
         eles = []
         for q in self._param.query:
             if q.get("component_id"):
@@ -549,7 +559,7 @@ class ComponentBase(ABC):
                     eles.extend(self._canvas.get_component(cpn_id)["obj"]._param.query)
                     continue
 
-                eles.append({"name": self._canvas.get_compnent_name(cpn_id), "key": cpn_id})
+                eles.append({"name": self._canvas.get_component_name(cpn_id), "key": cpn_id})
             else:
                 eles.append({"key": q["value"], "name": q["value"], "value": q["value"]})
         return eles
@@ -559,8 +569,10 @@ class ComponentBase(ABC):
         if len(self._canvas.path) > 1:
             reversed_cpnts.extend(self._canvas.path[-2])
         reversed_cpnts.extend(self._canvas.path[-1])
+        up_cpns = self.get_upstream()
+        reversed_up_cpnts = [cpn for cpn in reversed_cpnts if cpn in up_cpns]
 
-        for u in reversed_cpnts[::-1]:
+        for u in reversed_up_cpnts[::-1]:
             if self.get_component_name(u) in ["switch", "answer"]:
                 continue
             return self._canvas.get_component(u)["obj"].output()[1]
@@ -574,3 +586,11 @@ class ComponentBase(ABC):
 
     def debug(self, **kwargs):
         return self._run([], **kwargs)
+
+    def get_parent(self):
+        pid = self._canvas.get_component(self._id)["parent_id"]
+        return self._canvas.get_component(pid)["obj"]
+
+    def get_upstream(self):
+        cpn_nms = self._canvas.get_component(self._id)['upstream']
+        return cpn_nms

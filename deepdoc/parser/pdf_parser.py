@@ -1,30 +1,82 @@
+#
+#  Copyright 2025 The InfiniFlow Authors. All Rights Reserved.
+#
+#  Licensed under the Apache License, Version 2.0 (the "License");
+#  you may not use this file except in compliance with the License.
+#  You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+#  Unless required by applicable law or agreed to in writing, software
+#  distributed under the License is distributed on an "AS IS" BASIS,
+#  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#  See the License for the specific language governing permissions and
+#  limitations under the License.
+#
+
 import logging
 import os
 import random
 import re
-import xgboost as xgb
+import sys
+import threading
+from copy import deepcopy
 from io import BytesIO
-from PIL import Image
+from timeit import default_timer as timer
+
 import numpy as np
+import pdfplumber
+import trio
+import xgboost as xgb
+from huggingface_hub import snapshot_download
+from PIL import Image
 from pypdf import PdfReader as pdf2_read
 import pdfplumber
 from api import settings
 from api.utils.file_utils import get_project_base_directory
-from deepdoc.vision import OCR, Recognizer, LayoutRecognizer, TableStructureRecognizer
+from deepdoc.vision import OCR, LayoutRecognizer, Recognizer, TableStructureRecognizer
+from rag.app.picture import vision_llm_chunk as picture_vision_llm_chunk
 from rag.nlp import rag_tokenizer
-from copy import deepcopy
-from huggingface_hub import snapshot_download
+from rag.prompts import vision_llm_describe_prompt
+from rag.settings import PARALLEL_DEVICES
+
+LOCK_KEY_pdfplumber = "global_shared_lock_pdfplumber"
+if LOCK_KEY_pdfplumber not in sys.modules:
+    sys.modules[LOCK_KEY_pdfplumber] = threading.Lock()
+
 
 class RAGFlowPdfParser:
-    def __init__(self):
+    def __init__(self, **kwargs):
+        """
+        If you have trouble downloading HuggingFace models, -_^ this might help!!
+
+        For Linux:
+        export HF_ENDPOINT=https://hf-mirror.com
+
+        For Windows:
+        Good luck
+        ^_-
+
+        """
+
         self.ocr = OCR()
-        self.layouter = LayoutRecognizer("layout")
+        self.parallel_limiter = None
+        if PARALLEL_DEVICES is not None and PARALLEL_DEVICES > 1:
+            self.parallel_limiter = [trio.CapacityLimiter(1) for _ in range(PARALLEL_DEVICES)]
+
+        if hasattr(self, "model_speciess"):
+            self.layouter = LayoutRecognizer("layout." + self.model_speciess)
+        else:
+            self.layouter = LayoutRecognizer("layout")
         self.tbl_det = TableStructureRecognizer()
         self.updown_cnt_mdl = xgb.Booster()
-        self._load_updown_cnt_model()
-        self.page_from = 0
-
-    def _load_updown_cnt_model(self):
+        if not settings.LIGHTEN:
+            try:
+                import torch.cuda
+                if torch.cuda.is_available():
+                    self.updown_cnt_mdl.set_param({"device": "cuda"})
+            except Exception:
+                logging.exception("RAGFlowPdfParser __init__")
         try:
             model_dir = os.path.join(get_project_base_directory(), "rag/res/deepdoc")
             self.updown_cnt_mdl.load_model(os.path.join(model_dir, "updown_concat_xgb.model"))
@@ -35,7 +87,9 @@ class RAGFlowPdfParser:
                 local_dir_use_symlinks=False)
             self.updown_cnt_mdl.load_model(os.path.join(model_dir, "updown_concat_xgb.model"))
 
-    def _char_width(self, c):
+        self.page_from = 0
+
+    def __char_width(self, c):
         return (c["x1"] - c["x0"]) // max(len(c["text"]), 1)
 
     def _height(self, c):
@@ -44,8 +98,10 @@ class RAGFlowPdfParser:
     def _x_dis(self, a, b):
         return min(abs(a["x1"] - b["x0"]), abs(a["x0"] - b["x1"]), abs(a["x0"] + a["x1"] - b["x0"] - b["x1"]) / 2)
 
-    def _y_dis(self, a, b):
-        return (b["top"] + b["bottom"] - a["top"] - a["bottom"]) / 2
+    def _y_dis(
+            self, a, b):
+        return (
+            b["top"] + b["bottom"] - a["top"] - a["bottom"]) / 2
 
     def _match_proj(self, b):
         proj_patt = [
@@ -66,7 +122,10 @@ class RAGFlowPdfParser:
         LEN = 6
         tks_down = rag_tokenizer.tokenize(down["text"][:LEN]).split()
         tks_up = rag_tokenizer.tokenize(up["text"][-LEN:]).split()
-        tks_all = up["text"][-LEN:].strip() + (" " if re.match(r"[a-zA-Z0-9]+", up["text"][-1] + down["text"][0]) else "") + down["text"][:LEN].strip()
+        tks_all = up["text"][-LEN:].strip() \
+            + (" " if re.match(r"[a-zA-Z0-9]+",
+                               up["text"][-1] + down["text"][0]) else "") \
+            + down["text"][:LEN].strip()
         tks_all = rag_tokenizer.tokenize(tks_all).split()
         fea = [
             up.get("R", -1) == down.get("R", -1),
@@ -77,13 +136,18 @@ class RAGFlowPdfParser:
             down["layout_type"] == "text",
             up["layout_type"] == "table",
             down["layout_type"] == "table",
-            re.search(r"([。？！；!?;+)）]|[a-z]\.)$", up["text"]) is not None,
-            re.search(r"[，：‘“、0-9（+-]$", up["text"]) is not None,
-            re.search(r"(^.?[/,?;:\]，。；：’”？！》】）-])", down["text"]) is not None,
-            re.match(r"[\(（][^\(\)（）]+[）\)]$", up["text"]) is not None,
-            re.search(r"[，,][^。.]+$", up["text"]) is not None,
-            re.search(r"[，,][^。.]+$", up["text"]) is not None,
-            re.search(r"[\(（][^\)）]+$", up["text"]) and re.search(r"[\)）]", down["text"]),
+            True if re.search(
+                r"([。？！；!?;+)）]|[a-z]\.)$",
+                up["text"]) else False,
+            True if re.search(r"[，：‘“、0-9（+-]$", up["text"]) else False,
+            True if re.search(
+                r"(^.?[/,?;:\]，。；：’”？！》】）-])",
+                down["text"]) else False,
+            True if re.match(r"[\(（][^\(\)（）]+[）\)]$", up["text"]) else False,
+            True if re.search(r"[，,][^。.]+$", up["text"]) else False,
+            True if re.search(r"[，,][^。.]+$", up["text"]) else False,
+            True if re.search(r"[\(（][^\)）]+$", up["text"])
+            and re.search(r"[\)）]", down["text"]) else False,
             self._match_proj(down),
             re.match(r"[A-Z]", down["text"]) is not None,
             re.match(r"[A-Z]", up["text"][-1]) is not None,
@@ -132,14 +196,15 @@ class RAGFlowPdfParser:
             table_counts.append(len(tables))
             if not tables:
                 continue
-            for table in tables:
-                left, top, right, bottom = table["x0"] - MARGIN, table["top"] - MARGIN, table["x1"] + MARGIN, table["bottom"] + MARGIN
-                left *= zoom_factor
-                top *= zoom_factor
-                right *= zoom_factor
-                bottom *= zoom_factor
-                positions.append((left, top))
-                imgs.append(self.page_images[page_index].crop((left, top, right, bottom)))
+            for tb in tbls:  # for table
+                left, top, right, bott = tb["x0"] - MARGIN, tb["top"] - MARGIN, \
+                    tb["x1"] + MARGIN, tb["bottom"] + MARGIN
+                left *= ZM
+                top *= ZM
+                right *= ZM
+                bott *= ZM
+                pos.append((left, top))
+                imgs.append(self.page_images[p].crop((left, top, right, bott)))
 
         assert len(self.page_images) == len(table_counts) - 1
         if not imgs:
@@ -206,45 +271,150 @@ class RAGFlowPdfParser:
                 box["SP"] = span_index
 
     def _ocr(self, page_number, image, characters, zoom_factor=3):
-        boxes = self.ocr.detect(np.array(image))
-        if not boxes:
+    #Enhanced OCR processing with better error handling and performance.
+    
+        # Configurable thresholds
+        SIZE_MISMATCH_THRESHOLD = 0.7  # Max size difference ratio
+        SPACE_INSERTION_CHARS = r"[0-9a-zA-Zа-яА-Я,.?;:!%%]"
+        MIN_BOX_AREA = 4  # Minimum area for a valid box (width*height in pixels)
+        
+        try:
+            # Convert image to numpy array once
+            image_np = np.array(image)
+            
+            # Detect text regions with error handling
+            try:
+                detected_lines = self.ocr.detect(image_np)
+                if not detected_lines:
+                    self.boxes.append([])
+                    logging.debug(f"No text detected on page {page_number}")
+                    return
+            except Exception as e:
+                logging.error(f"OCR detection failed on page {page_number}: {str(e)}")
+                self.boxes.append([])
+                return
+
+            # Process detected boxes
+            valid_boxes = []
+            for line in detected_lines:
+                b, t = line[0], line[1][0]
+                # Validate box coordinates and minimum size
+                if (b[0][0] <= b[1][0] and b[0][1] <= b[-1][1] and 
+                    (b[1][0] - b[0][0]) * (b[-1][1] - b[0][1]) >= MIN_BOX_AREA):
+                    valid_boxes.append((b, t))
+            
+            # Convert and sort boxes
+            boxes = [
+                {
+                    "x0": b[0][0] / zoom_factor,
+                    "x1": b[1][0] / zoom_factor,
+                    "top": b[0][1] / zoom_factor,
+                    "bottom": b[-1][1] / zoom_factor,
+                    "text": "",
+                    "txt": t,  # Temporary storage
+                    "page_number": page_number,
+                    "confidence": t[1] if isinstance(t, tuple) else 1.0  # Store confidence if available
+                }
+                for b, t in valid_boxes
+            ]
+            
+            # Sort boxes with optimized threshold calculation
+            sort_threshold = self.mean_height[-1] / 3 if self.mean_height else 10
+            boxes = Recognizer.sort_Y_firstly(boxes, sort_threshold)
+
+            # Pre-calculate mean height for current page if not available
+            current_page_mean_height = (
+                self.mean_height[page_number - 1] 
+                if page_number - 1 < len(self.mean_height) and self.mean_height[page_number - 1] > 0
+                else 12  # Default value
+            )
+
+            # Process characters in batches for better performance
+            sorted_chars = Recognizer.sort_Y_firstly(characters, current_page_mean_height // 4)
+            char_index = 0
+            total_chars = len(sorted_chars)
+            
+            while char_index < total_chars:
+                char = sorted_chars[char_index]
+                char_index += 1
+                
+                # Find matching box
+                box_idx = Recognizer.find_overlapped(char, boxes)
+                if box_idx is None:
+                    self.lefted_chars.append(char)
+                    continue
+
+                # Calculate sizes once
+                box = boxes[box_idx]
+                char_height = char["bottom"] - char["top"]
+                box_height = box["bottom"] - box["top"]
+                size_ratio = abs(char_height - box_height) / max(char_height, box_height)
+                
+                # Skip characters with significant size mismatch
+                if size_ratio >= SIZE_MISMATCH_THRESHOLD and char["text"] != ' ':
+                    self.lefted_chars.append(char)
+                    continue
+
+                # Handle space insertion more intelligently
+                if char["text"] == " ":
+                    if box["text"]:  # Only add space if there's existing text
+                        last_char = box["text"][-1]
+                        # Add space only between certain characters
+                        if re.match(SPACE_INSERTION_CHARS, last_char):
+                            # Don't add duplicate spaces
+                            if not box["text"].endswith(" "):
+                                box["text"] += " "
+                else:
+                    # Validate character before adding
+                    if char["text"].strip():  # Skip empty/whitespace-only chars
+                        box["text"] += char["text"]
+
+            # Process empty boxes with fallback OCR
+            for box in boxes:
+                if not box["text"]:
+                    try:
+                        # Convert coordinates once
+                        left = int(box["x0"] * zoom_factor)
+                        top = int(box["top"] * zoom_factor)
+                        right = int(box["x1"] * zoom_factor)
+                        bottom = int(box["bottom"] * zoom_factor)
+                        
+                        # Validate coordinates
+                        if right > left and bottom > top:
+                            polygon = np.array([
+                                [left, top],
+                                [right, top],
+                                [right, bottom],
+                                [left, bottom]
+                            ], dtype=np.float32)
+                            
+                            # Perform OCR with error handling
+                            box["text"] = self.ocr.recognize(image_np, polygon) or ""
+                    except Exception as e:
+                        logging.warning(f"Fallback OCR failed for box on page {page_number}: {str(e)}")
+                        box["text"] = ""
+
+            # Clean up and filter boxes
+            final_boxes = []
+            for box in boxes:
+                if "txt" in box:
+                    del box["txt"]
+                if box["text"].strip():  # Only keep boxes with actual content
+                    final_boxes.append(box)
+            
+            # Update mean height if needed
+            if not self.mean_height or self.mean_height[-1] == 0:
+                heights = [box["bottom"] - box["top"] for box in final_boxes]
+                if heights:
+                    self.mean_height.append(np.median(heights))
+                else:
+                    self.mean_height.append(current_page_mean_height)  # Fallback
+            
+            self.boxes.append(final_boxes)
+            
+        except Exception as e:
+            logging.error(f"Unexpected error in _ocr for page {page_number}: {str(e)}")
             self.boxes.append([])
-            return
-        boxes = [(line[0], line[1][0]) for line in boxes]
-        boxes = Recognizer.sort_Y_firstly(
-            [{"x0": b[0][0] / zoom_factor, "x1": b[1][0] / zoom_factor,
-              "top": b[0][1] / zoom_factor, "text": "", "txt": t,
-              "bottom": b[-1][1] / zoom_factor,
-              "page_number": page_number} for b, t in boxes if b[0][0] <= b[1][0] and b[0][1] <= b[-1][1]],
-            self.mean_height[-1] / 3
-        )
-
-        for character in Recognizer.sort_Y_firstly(characters, self.mean_height[page_number - 1] // 4):
-            index = Recognizer.find_overlapped(character, boxes)
-            if index is None:
-                self.lefted_chars.append(character)
-                continue
-            char_height = character["bottom"] - character["top"]
-            box_height = boxes[index]["bottom"] - boxes[index]["top"]
-            if abs(char_height - box_height) / max(char_height, box_height) >= 0.7 and character["text"] != ' ':
-                self.lefted_chars.append(character)
-                continue
-            if character["text"] == " " and boxes[index]["text"]:
-                if re.match(r"[0-9a-zA-Zа-яА-Я,.?;:!%%]", boxes[index]["text"][-1]):
-                    boxes[index]["text"] += " "
-            else:
-                boxes[index]["text"] += character["text"]
-
-        for box in boxes:
-            if not box["text"]:
-                left, right, top, bottom = box["x0"] * zoom_factor, box["x1"] * zoom_factor, box["top"] * zoom_factor, box["bottom"] * zoom_factor
-                box["text"] = self.ocr.recognize(np.array(image),
-                                               np.array([[left, top], [right, top], [right, bottom], [left, bottom]], dtype=np.float32))
-            del box["txt"]
-        boxes = [box for box in boxes if box["text"]]
-        if self.mean_height[-1] == 0:
-            self.mean_height[-1] = np.median([box["bottom"] - box["top"] for box in boxes])
-        self.boxes.append(boxes)
 
     def _layouts_rec(self, zoom_factor, drop=True):
         assert len(self.page_images) == len(self.boxes)
@@ -305,8 +475,16 @@ class RAGFlowPdfParser:
                 box["page_number"] == next_box["page_number"] and next_box["top"] - box["bottom"] > self.mean_height[box["page_number"] - 1] * 1.5,
                 box["page_number"] < next_box["page_number"] and abs(box["x0"] - next_box["x0"]) > self.mean_width[box["page_number"] - 1] * 4,
             ]
-            detach_features = [box["x1"] < next_box["x0"], box["x0"] > next_box["x1"]]
-            if (any(feats) and not any(concatting_features)) or any(detach_features):
+            # split features
+            detach_feats = [b["x1"] < b_["x0"],
+                            b["x0"] > b_["x1"]]
+            if (any(feats) and not any(concatting_feats)) or any(detach_feats):
+                logging.debug("{} {} {} {}".format(
+                    b["text"],
+                    b_["text"],
+                    any(feats),
+                    any(concatting_feats),
+                ))
                 i += 1
                 continue
             box["bottom"] = next_box["bottom"]
@@ -473,7 +651,7 @@ class RAGFlowPdfParser:
             next_box["top"] = box["top"]
             self.boxes.pop(i)
 
-    def _extract_table_figure(self, need_image, zoom_factor, return_html, need_position):
+    def _extract_table_figure(self, need_image, ZM, return_html, need_position, separate_tables_figures=False):
         tables = {}
         figures = {}
         i = 0
@@ -483,9 +661,13 @@ class RAGFlowPdfParser:
             if "layoutno" not in self.boxes[i]:
                 i += 1
                 continue
-            layout_no = f"{self.boxes[i]['page_number']}-{self.boxes[i]['layoutno']}"
-            if TableStructureRecognizer.is_caption(self.boxes[i]) or self.boxes[i]["layout_type"] in ["table caption", "title", "figure caption", "reference"]:
-                no_merge_layout_no.append(last_layout_no)
+            lout_no = str(self.boxes[i]["page_number"]) + \
+                "-" + str(self.boxes[i]["layoutno"])
+            if TableStructureRecognizer.is_caption(self.boxes[i]) or self.boxes[i]["layout_type"] in ["table caption",
+                                                                                                      "title",
+                                                                                                      "figure caption",
+                                                                                                      "reference"]:
+                nomerge_lout_no.append(lst_lout_no)
             if self.boxes[i]["layout_type"] == "table":
                 if re.match(r"(data|information|charts)*source[:： ]", self.boxes[i]["text"]):
                     self.boxes.pop(i)
@@ -564,16 +746,13 @@ class RAGFlowPdfParser:
                 logging.debug(f"FIGURE: {self.boxes[i]['text']}; Cap: {figure_key}")
             self.boxes.pop(i)
 
-        results = []
-        positions = []
-
-        def cropout(bxs, layout_type, poss):
-            nonlocal zoom_factor
-            page_numbers = set([b["page_number"] - 1 for b in bxs])
-            if len(page_numbers) < 2:
-                page_number = list(page_numbers)[0]
-                height = self.page_cum_height[page_number]
-                bounding_box = {
+        def cropout(bxs, ltype, poss):
+            nonlocal ZM
+            pn = set([b["page_number"] - 1 for b in bxs])
+            if len(pn) < 2:
+                pn = list(pn)[0]
+                ht = self.page_cum_height[pn]
+                b = {
                     "x0": np.min([b["x0"] for b in bxs]),
                     "top": np.min([b["top"] for b in bxs]) - height,
                     "x1": np.max([b["x1"] for b in bxs]),
@@ -600,27 +779,56 @@ class RAGFlowPdfParser:
                 height += img.size[1]
             return image
 
-        for key, bxs in figures.items():
-            text = "\n".join([b["text"] for b in bxs])
-            if not text:
+        res = []
+        positions = []
+        figure_results = []
+        figure_positions = []
+        # crop figure out and add caption
+        for k, bxs in figures.items():
+            txt = "\n".join([b["text"] for b in bxs])
+            if not txt:
                 continue
             poss = []
-            results.append((cropout(bxs, "figure", poss), [text]))
-            positions.append(poss)
+
+            if separate_tables_figures:
+                figure_results.append(
+                    (cropout(
+                        bxs,
+                        "figure", poss),
+                     [txt]))
+                figure_positions.append(poss)
+            else:
+                res.append(
+                    (cropout(
+                        bxs,
+                        "figure", poss),
+                     [txt]))
+                positions.append(poss)
 
         for key, bxs in tables.items():
             if not bxs:
                 continue
-            bxs = Recognizer.sort_Y_firstly(bxs, np.mean([(b["bottom"] - b["top"]) / 2 for b in bxs]))
+            bxs = Recognizer.sort_Y_firstly(bxs, np.mean(
+                [(b["bottom"] - b["top"]) / 2 for b in bxs]))
+
             poss = []
-            results.append((cropout(bxs, "table", poss), self.tbl_det.construct_table(bxs, html=return_html, is_english=self.is_english)))
+
+            res.append((cropout(bxs, "table", poss),
+                        self.tbl_det.construct_table(bxs, html=return_html, is_english=self.is_english)))
             positions.append(poss)
 
-        assert len(positions) == len(results)
-
-        if need_position:
-            return list(zip(results, positions))
-        return results
+        if separate_tables_figures:
+            assert len(positions) + len(figure_positions) == len(res) + len(figure_results)
+            if need_position:
+                return list(zip(res, positions)), list(zip(figure_results, figure_positions))
+            else:
+                return res, figure_results
+        else:
+            assert len(positions) == len(res)
+            if need_position:
+                return list(zip(res, positions))
+            else:
+                return res
 
     def proj_match(self, line):
         if len(line) <= 2:
@@ -720,8 +928,12 @@ class RAGFlowPdfParser:
     @staticmethod
     def total_page_number(filename, binary=None):
         try:
-            pdf = pdfplumber.open(filename) if not binary else pdfplumber.open(BytesIO(binary))
-            return len(pdf.pages)
+            with sys.modules[LOCK_KEY_pdfplumber]:
+                pdf = pdfplumber.open(
+                    fnm) if not binary else pdfplumber.open(BytesIO(binary))
+            total_page = len(pdf.pages)
+            pdf.close()
+            return total_page
         except Exception:
             logging.exception("total_page_number")
 
@@ -734,18 +946,23 @@ class RAGFlowPdfParser:
         self.page_cum_height = [0]
         self.page_layout = []
         self.page_from = page_from
+        start = timer()
         try:
-            self.pdf = pdfplumber.open(filename) if isinstance(filename, str) else pdfplumber.open(BytesIO(filename))
-            self.page_images = [page.to_image(resolution=72 * zoom_factor).annotated for page in self.pdf.pages[page_from:page_to]]
-            self.page_images_x2 = [page.to_image(resolution=72 * zoom_factor * 2).annotated for page in self.pdf.pages[page_from:page_to]]
-            try:
-                self.page_chars = [[{**char, 'top': char['top'], 'bottom': char['bottom']} for char in page.dedupe_chars().chars if self._has_color(char)] for page in self.pdf.pages[page_from:page_to]]
-            except Exception as e:
-                logging.warning(f"Failed to extract characters for pages {page_from}-{page_to}: {str(e)}")
-                self.page_chars = [[] for _ in range(page_to - page_from)]
-            self.total_page = len(self.pdf.pages)
+            with sys.modules[LOCK_KEY_pdfplumber]:
+                self.pdf = pdfplumber.open(fnm) if isinstance(
+                    fnm, str) else pdfplumber.open(BytesIO(fnm))
+                self.page_images = [p.to_image(resolution=72 * zoomin).annotated for i, p in
+                                    enumerate(self.pdf.pages[page_from:page_to])]
+                try:
+                    self.page_chars = [[c for c in page.dedupe_chars().chars if self._has_color(c)] for page in self.pdf.pages[page_from:page_to]]
+                except Exception as e:
+                    logging.warning(f"Failed to extract characters for pages {page_from}-{page_to}: {str(e)}")
+                    self.page_chars = [[] for _ in range(page_to - page_from)]  # If failed to extract, using empty list instead.
+
+                self.total_page = len(self.pdf.pages)
         except Exception:
             logging.exception("RAGFlowPdfParser __images__")
+        logging.info(f"__images__ dedupe_chars cost {timer() - start}s")
 
         self.outlines = []
         try:
@@ -762,30 +979,67 @@ class RAGFlowPdfParser:
             dfs(outlines, 0)
         except Exception as e:
             logging.warning(f"Outlines exception: {e}")
+        finally:
+            self.pdf.close()
         if not self.outlines:
             logging.warning("Miss outlines")
 
         logging.debug("Images converted.")
-        self.is_english = [re.search(r"[a-zA-Z0-9,/¸;:'\[\]\(\)!@#$%^&*\"?<>._-]{30,}", "".join(random.choices([char["text"] for char in self.page_chars[i]], k=min(100, len(self.page_chars[i]))))) for i in range(len(self.page_chars))]
-        if sum(1 for e in self.is_english if e) > len(self.page_images) / 2:
+        self.is_english = [re.search(r"[a-zA-Z0-9,/¸;:'\[\]\(\)!@#$%^&*\"?<>._-]{30,}", "".join(
+            random.choices([c["text"] for c in self.page_chars[i]], k=min(100, len(self.page_chars[i]))))) for i in
+            range(len(self.page_chars))]
+        if sum([1 if e else 0 for e in self.is_english]) > len(
+                self.page_images) / 2:
             self.is_english = True
         else:
             self.is_english = False
 
-        for i, image in enumerate(self.page_images_x2):
-            chars = self.page_chars[i] if not self.is_english else []
-            self.mean_height.append(np.median(sorted([char["height"] for char in chars])) if chars else 0)
-            self.mean_width.append(np.median(sorted([char["width"] for char in chars])) if chars else 8)
-            self.page_cum_height.append(image.size[1] / zoom_factor / 2)
+        async def __img_ocr(i, id, img, chars, limiter):
             j = 0
             while j + 1 < len(chars):
                 if chars[j]["text"] and chars[j + 1]["text"] and re.match(r"[0-9a-zA-Z,.:;!%]+", chars[j]["text"] + chars[j + 1]["text"]) and chars[j + 1]["x0"] - chars[j]["x1"] >= min(chars[j + 1]["width"], chars[j]["width"]) / 2:
                     chars[j]["text"] += " "
                 j += 1
 
-            self._ocr(i + 1, image, chars, zoom_factor * 2)
+            if limiter:
+                async with limiter:
+                    await trio.to_thread.run_sync(lambda: self.__ocr(i + 1, img, chars, zoomin, id))
+            else:
+                self.__ocr(i + 1, img, chars, zoomin, id)
+
             if callback and i % 6 == 5:
                 callback(prog=(i + 1) * 0.6 / len(self.page_images), msg="")
+
+        async def __img_ocr_launcher():
+            def __ocr_preprocess():
+                chars = self.page_chars[i] if not self.is_english else []
+                self.mean_height.append(
+                    np.median(sorted([c["height"] for c in chars])) if chars else 0
+                )
+                self.mean_width.append(
+                    np.median(sorted([c["width"] for c in chars])) if chars else 8
+                )
+                self.page_cum_height.append(img.size[1] / zoomin)
+                return chars
+
+            if self.parallel_limiter:
+                async with trio.open_nursery() as nursery:
+                    for i, img in enumerate(self.page_images):
+                        chars = __ocr_preprocess()
+
+                        nursery.start_soon(__img_ocr, i, i % PARALLEL_DEVICES, img, chars,
+                                           self.parallel_limiter[i % PARALLEL_DEVICES])
+                        await trio.sleep(0.1)
+            else:
+                for i, img in enumerate(self.page_images):
+                    chars = __ocr_preprocess()
+                    await __img_ocr(i, 0, img, chars, None)
+
+        start = timer()
+
+        trio.run(__img_ocr_launcher)
+
+        logging.info(f"__images__ {len(self.page_images)} pages cost {timer() - start}s")
 
         if not self.is_english and not any([char for char in self.page_chars]) and self.boxes:
             boxes = [box for boxes in self.boxes for box in boxes]
@@ -836,9 +1090,16 @@ class RAGFlowPdfParser:
             bottom *= zoom_factor
             for pn in pns[1:]:
                 bottom += self.page_images[pn - 1].size[1]
-            images.append(self.page_images[pns[0]].crop((left * zoom_factor, top * zoom_factor, right * zoom_factor, min(bottom, self.page_images[pns[0]].size[1]))))
-            if 0 < ii < len(positions) - 1:
-                positions_result.append((pns[0] + self.page_from, left, right, top, min(bottom, self.page_images[pns[0]].size[1]) / zoom_factor))
+            imgs.append(
+                self.page_images[pns[0]].crop((left * ZM, top * ZM,
+                                               right *
+                                               ZM, min(
+                                                   bottom, self.page_images[pns[0]].size[1])
+                                               ))
+            )
+            if 0 < ii < len(poss) - 1:
+                positions.append((pns[0] + self.page_from, left, right, top, min(
+                    bottom, self.page_images[pns[0]].size[1]) / ZM))
             bottom -= self.page_images[pns[0]].size[1]
             for pn in pns[1:]:
                 images.append(self.page_images[pn].crop((left * zoom_factor, 0, right * zoom_factor, min(bottom, self.page_images[pn].size[1]))))
@@ -915,6 +1176,54 @@ class PlainParser:
     @staticmethod
     def remove_tag(txt):
         raise NotImplementedError
+
+
+class VisionParser(RAGFlowPdfParser):
+    def __init__(self, vision_model, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.vision_model = vision_model
+
+    def __images__(self, fnm, zoomin=3, page_from=0, page_to=299, callback=None):
+        try:
+            with sys.modules[LOCK_KEY_pdfplumber]:
+                self.pdf = pdfplumber.open(fnm) if isinstance(
+                    fnm, str) else pdfplumber.open(BytesIO(fnm))
+                self.page_images = [p.to_image(resolution=72 * zoomin).annotated for i, p in
+                                    enumerate(self.pdf.pages[page_from:page_to])]
+                self.total_page = len(self.pdf.pages)
+        except Exception:
+            self.page_images = None
+            self.total_page = 0
+            logging.exception("VisionParser __images__")
+
+    def __call__(self, filename, from_page=0, to_page=100000, **kwargs):
+        callback = kwargs.get("callback", lambda prog, msg: None)
+
+        self.__images__(fnm=filename, zoomin=3, page_from=from_page, page_to=to_page, **kwargs)
+
+        total_pdf_pages = self.total_page
+
+        start_page = max(0, from_page)
+        end_page = min(to_page, total_pdf_pages)
+
+        all_docs = []
+
+        for idx, img_binary in enumerate(self.page_images or []):
+            pdf_page_num = idx  # 0-based
+            if pdf_page_num < start_page or pdf_page_num >= end_page:
+                continue
+
+            docs = picture_vision_llm_chunk(
+                binary=img_binary,
+                vision_model=self.vision_model,
+                prompt=vision_llm_describe_prompt(page=pdf_page_num+1),
+                callback=callback,
+            )
+
+            if docs:
+                all_docs.append(docs)
+        return [(doc, "") for doc in all_docs], []
+
 
 if __name__ == "__main__":
     pass
