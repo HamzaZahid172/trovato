@@ -31,7 +31,6 @@ import xgboost as xgb
 from huggingface_hub import snapshot_download
 from PIL import Image
 from pypdf import PdfReader as pdf2_read
-import pdfplumber
 from api import settings
 from api.utils.file_utils import get_project_base_directory
 from deepdoc.vision import OCR, LayoutRecognizer, Recognizer, TableStructureRecognizer

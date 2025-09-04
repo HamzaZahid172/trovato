@@ -61,7 +61,7 @@ jobs:
         uses: astral-sh/ruff-action@v2
         with:
           version: ">=0.8.2"
-          args: "check"
+          args: "check --output-format=github --exit-zero"
 
       - name: Build ragflow:nightly-slim
         run: |

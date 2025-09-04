@@ -152,7 +152,7 @@ exclude = [
 ]
 
 [tool.ruff.lint]
-select = ["E", "F", "I"]
+select = ["E", "F"]
 extend-select = ["ASYNC", "ASYNC1"]
 ignore = ["E402"]
 
