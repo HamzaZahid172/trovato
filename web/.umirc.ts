@@ -1,5 +1,4 @@
 import path from 'path';
-import TerserPlugin from 'terser-webpack-plugin';
 import { defineConfig } from 'umi';
 import { appName } from './src/conf.json';
 import routes from './src/routes';
@@ -7,7 +6,9 @@ import routes from './src/routes';
 export default defineConfig({
   title: appName,
   outputPath: 'dist',
-  alias: { '@parent': path.resolve(__dirname, '../') },
+  alias: {
+    '@parent': path.resolve(__dirname, '..', '..'),
+  },
   npmClient: 'npm',
   base: '/',
   routes,
@@ -46,12 +47,8 @@ export default defineConfig({
     },
   ],
 
-  chainWebpack(memo, args) {
+  chainWebpack(memo) {
     memo.module.rule('markdown').test(/\.md$/).type('asset/source');
-
-    memo.optimization.minimizer('terser').use(TerserPlugin); // Fixed the issue that the page displayed an error after packaging lexical with terser
-
-    return memo;
   },
   tailwindcss: {},
 });

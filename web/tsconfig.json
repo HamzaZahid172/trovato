@@ -1,5 +1,15 @@
 {
-  "extends": "./src/.umi/tsconfig.json",
-  "@@/*": ["src/.umi/*"],
-  "root": ["../*"],
+  "compilerOptions": {
+    "baseUrl": ".",
+    "paths": {
+      "@@/*": ["src/.umi/*"],
+      "@parent/*": ["../*"],
+    },
+  },
+  "include": [
+    "src/**/*.ts",
+    "src/**/*.tsx",
+    "src/types/**/*.d.ts",
+    "typings.d.ts",
+  ],
 }

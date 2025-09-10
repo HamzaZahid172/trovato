@@ -162,8 +162,37 @@ RUN --mount=type=cache,id=ragflow_uv,target=/root/.cache/uv,sharing=locked \
 
 COPY web web
 COPY docs docs
+    # --- Node & build tooling (inside the same image you already use) ---
+ARG NODE_MAJOR=20
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+      curl ca-certificates gnupg build-essential python3 pkg-config && \
+    curl -fsSL https://deb.nodesource.com/setup_${NODE_MAJOR}.x | bash - && \
+    apt-get install -y --no-install-recommends nodejs && \
+    npm -g install npm@11.6.0 && \
+    rm -rf /var/lib/apt/lists/*
+
+# --- Build the web app with cache-friendly layers ---
+WORKDIR /app
+
+# Copy only manifests first to leverage Docker layer cache
+COPY web/package.json web/package-lock.json ./web/
+
+# Faster, deterministic install; handle peer-deps conflicts safely
 RUN --mount=type=cache,id=ragflow_npm,target=/root/.npm,sharing=locked \
-    cd web && npm install && npm run build
+    cd web && npm ci --no-audit --no-fund --legacy-peer-deps
+
+# Now copy the rest of the sources
+COPY web ./web
+
+# If your frontend needs env at build time (e.g., NEXT_PUBLIC_*), set defaults
+ARG NEXT_PUBLIC_API_BASE="http://localhost:9380"
+ENV NEXT_PUBLIC_API_BASE=${NEXT_PUBLIC_API_BASE}
+
+# Build
+RUN --mount=type=cache,id=ragflow_npm,target=/root/.npm,sharing=locked \
+    cd web && npm run build
+
 
 COPY .git /ragflow/.git
 
